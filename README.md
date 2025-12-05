@@ -437,6 +437,13 @@ This project is developed for educational purposes as part of an Android develop
 - The Android developer community
 
 ---
+## 📱 App Screens
+![Login Screen](screenshots/login.png)
+![Register Screen](screenshots/register.png)
+![Home Screen](screenshots/chat.png)
+![Chat Details Screen](screenshots/chatdetails.png)
+![Settings Screen](screenshots/settings.png)
+---
 
 ## 📊 Project Status
 
