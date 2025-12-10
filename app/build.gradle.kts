@@ -2,17 +2,17 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    id("com.google.gms.google-services")
-    id("com.google.devtools.ksp")
 }
 
 android {
-    namespace = "com.chat.app"
-    compileSdk = 36
+    namespace = "com.example.chatapp"
+    compileSdk {
+        version = release(36)
+    }
 
     defaultConfig {
-        applicationId = "com.chat.app"
-        minSdk = 33
+        applicationId = "com.example.chatapp"
+        minSdk = 24
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -42,7 +42,11 @@ android {
 }
 
 dependencies {
-
+    implementation("io.coil-kt:coil-compose:2.5.0")
+    implementation("androidx.compose.material:material-icons-extended:1.5.0")
+    implementation("androidx.navigation:navigation-compose:2.7.7")
+    implementation("androidx.appcompat:appcompat:1.6.1")
+    implementation("androidx.core:core-splashscreen:1.0.1")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -51,21 +55,6 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
-
-    implementation(platform("com.google.firebase:firebase-bom:34.6.0"))
-    implementation("com.google.firebase:firebase-analytics")
-    implementation("com.google.firebase:firebase-firestore")
-    implementation("com.google.firebase:firebase-auth")
-
-    implementation("androidx.navigation:navigation-compose:2.8.5")
-
-    val roomVersion = "2.6.1"
-    implementation("androidx.room:room-runtime:$roomVersion")
-    implementation("androidx.room:room-ktx:$roomVersion") // Uses Kotlin Coroutines
-    ksp("androidx.room:room-compiler:$roomVersion")      // Annotation Processor
-
-    implementation("androidx.datastore:datastore-preferences:1.1.1")
-
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
