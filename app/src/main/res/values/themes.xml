@@ -1,5 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.Chatapp" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- app theme -->
+    <style name="Theme.ChatApp" parent="Theme.AppCompat.Light.NoActionBar"/>
+
+    <!-- SPLASH  -->
+    <style name="Theme.ChatApp.Splash" parent="Theme.SplashScreen">
+
+
+        <item name="windowSplashScreenBackground">#2B2B2B</item>
+
+
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash</item>
+
+
+
+
+        <!-- For Android 11 and below -->
+        <item name="android:windowBackground">#2B2B2B</item>
+
+
+        <item name="postSplashScreenTheme">@style/Theme.ChatApp</item>
+
+    </style>
+
 </resources>
