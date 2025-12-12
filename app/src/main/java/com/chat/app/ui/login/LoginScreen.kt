@@ -17,17 +17,36 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.clickable
 import androidx.navigation.NavController
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.chat.app.R
+import com.chat.app.navigation.Routes
 
 
 
 
 
 @Composable
-fun LoginScreen(navController: NavController) {
-
+fun LoginScreen(
+    navController: NavController,
+    viewModel: LoginViewModel = hiltViewModel()
+) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    
+    // Handle state changes
+    LaunchedEffect(state) {
+        when (state) {
+            is SignInState.Success -> {
+                navController.navigate(Routes.HOME) {
+                    popUpTo(Routes.LOGIN) { inclusive = true }
+                }
+            }
+            else -> {}
+        }
+    }
 
 
     Box(
@@ -90,13 +109,23 @@ fun LoginScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            // Error message
+            if (state == SignInState.Error) {
+                Text(
+                    text = "Login failed. Please check your credentials.",
+                    color = Color.Red,
+                    fontSize = 14.sp,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+            }
 
             Button(
                 onClick = {
-                    navController.navigate("home") {
-                        popUpTo("login") { inclusive = true } // Prevents going back to login
+                    if (email.isNotBlank() && password.isNotBlank()) {
+                        viewModel.signIn(email, password)
                     }
                 },
+                enabled = state != SignInState.Loading,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
@@ -104,15 +133,22 @@ fun LoginScreen(navController: NavController) {
                     containerColor = Color.Black
                 )
             ) {
-                Text("Login", color = Color.White ,fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold)
+                if (state == SignInState.Loading) {
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                } else {
+                    Text("Login", color = Color.White, fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold)
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
             Button(
                 onClick = {
-                    navController.navigate("register")
+                    navController.navigate(Routes.REGISTER)
                 },
                 modifier = Modifier
                     .fillMaxWidth()
