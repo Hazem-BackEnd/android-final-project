@@ -1,0 +1,150 @@
+package com.chat.app.ui.home
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.chat.app.data.local.entities.ChatEntity
+import com.chat.app.data.repository.ChatRepository
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+
+data class HomeUiState(
+    val chats: List<ChatEntity> = emptyList(),
+    val isLoading: Boolean = false,
+    val searchQuery: String = "",
+    val isSearching: Boolean = false,
+    val errorMessage: String? = null
+) {
+    // Helper properties for UI logic
+    val shouldShowLoading: Boolean get() = isLoading && chats.isEmpty()
+    val shouldShowEmpty: Boolean get() = !isLoading && chats.isEmpty() && errorMessage == null
+    val shouldShowChats: Boolean get() = !isLoading && chats.isNotEmpty()
+}
+
+class HomeScreenViewModel(
+    private val chatRepository: ChatRepository,
+    private val currentUserId: String = "current_user"
+): ViewModel(){
+    
+    // Private mutable state
+    private val _uiState = MutableStateFlow(HomeUiState())
+    // Public read-only state
+    val uiState = _uiState.asStateFlow()
+    
+    // All chats from database
+    private val _allChats = MutableStateFlow<List<ChatEntity>>(emptyList())
+    
+    init{
+        loadChats()
+    }
+
+    private fun loadChats() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true)
+            
+            try {
+                chatRepository.allChats
+                    .catch { exception ->
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            errorMessage = exception.message
+                        )
+                    }
+                    .collect { chatList ->
+                        _allChats.value = chatList
+                        updateFilteredChats()
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            errorMessage = null
+                        )
+                    }
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = e.message
+                )
+            }
+        }
+    }
+    fun updateSearchQuery(query: String) {
+        _uiState.value = _uiState.value.copy(searchQuery = query)
+        updateFilteredChats()
+    }
+
+    fun toggleSearch() {
+        val newSearching = !_uiState.value.isSearching
+        _uiState.value = _uiState.value.copy(
+            isSearching = newSearching,
+            searchQuery = if (!newSearching) "" else _uiState.value.searchQuery
+        )
+        updateFilteredChats()
+    }
+
+    private fun updateFilteredChats() {
+        val currentState = _uiState.value
+        val filteredChats = if (currentState.searchQuery.isEmpty()) {
+            _allChats.value
+        } else {
+            _allChats.value.filter { chat ->
+                // Search in otherUserId and lastMessage
+                chat.otherUserId.contains(currentState.searchQuery, ignoreCase = true) ||
+                (chat.lastMessage?.contains(currentState.searchQuery, ignoreCase = true) == true)
+            }
+        }
+        
+        _uiState.value = currentState.copy(chats = filteredChats)
+    }
+    fun onChatClicked(chatId: String) {
+        println("🔥 Chat clicked: $chatId")
+        // Navigation will be handled in the UI layer
+    }
+    /**
+     * 🔥 UPDATED: Add sample data with proper chat IDs for current user
+     */
+    fun addSampleData() {
+        viewModelScope.launch {
+            try {
+                val sampleChats = listOf(
+                    ChatEntity(
+                        chatId = "${currentUserId}_ahmed_ali", // 🔥 Include current user in chat ID
+                        otherUserId = "Ahmed Ali",
+                        lastMessage = "Hey, how are you doing? Let's catch up soon!",
+                        timestamp = System.currentTimeMillis() - 3600000 // 1 hour ago
+                    ),
+                    ChatEntity(
+                        chatId = "${currentUserId}_mariam_hassan",
+                        otherUserId = "Mariam Hassan", 
+                        lastMessage = "Let's meet tomorrow at 5 PM for coffee",
+                        timestamp = System.currentTimeMillis() - 7200000 // 2 hours ago
+                    ),
+                    ChatEntity(
+                        chatId = "${currentUserId}_omar_khaled",
+                        otherUserId = "Omar Khaled",
+                        lastMessage = "Thanks for your help with the project!",
+                        timestamp = System.currentTimeMillis() - 86400000 // 1 day ago
+                    ),
+                    ChatEntity(
+                        chatId = "${currentUserId}_sara_mohamed",
+                        otherUserId = "Sara Mohamed",
+                        lastMessage = "See you soon at the meeting 👋",
+                        timestamp = System.currentTimeMillis() - 172800000 // 2 days ago
+                    ),
+                    ChatEntity(
+                        chatId = "${currentUserId}_hassan_ahmed",
+                        otherUserId = "Hassan Ahmed",
+                        lastMessage = "Call me when you're free to discuss the plan",
+                        timestamp = System.currentTimeMillis() - 259200000 // 3 days ago
+                    )
+                )
+                
+                sampleChats.forEach { chat ->
+                    chatRepository.createOrUpdateChat(chat)
+                }
+                
+                println("✅ Sample chats added for user: $currentUserId")
+                println("🔍 Try searching for: 'Ahmed', 'meeting', 'help', 'coffee'")
+            } catch (e: Exception) {
+                println("❌ Error adding sample chats: ${e.message}")
+            }
+        }
+    }
+}

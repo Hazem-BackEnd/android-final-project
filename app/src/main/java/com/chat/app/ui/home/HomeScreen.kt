@@ -7,59 +7,52 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
+import com.chat.app.data.local.entities.ChatEntity
+import com.chat.app.data.repository.ChatRepository
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.*
 
-// DATA MODEL FOR CHAT
-data class ChatItem(
-    val name: String,
-    val lastMessage: String,
-    val time: String
-)
-
-// DUMMY CHAT DATA
-val dummyChats = listOf(
-    ChatItem("Ahmed", "Hey, how are you?", "10:45 AM"),
-    ChatItem("Mariam", "Let's meet tomorrow", "9:30 AM"),
-    ChatItem("Omar", "Thanks a lot!", "Yesterday"),
-    ChatItem("Sara", "See you soon", "Yesterday"),
-    ChatItem("Hassan", "Call me when free", "2 days ago"),
-    ChatItem("Ahmed", "Hey, how are you?", "10:45 AM"),
-    ChatItem("Mariam", "Let's meet tomorrow", "9:30 AM"),
-    ChatItem("Omar", "Thanks a lot!", "Yesterday"),
-    ChatItem("Sara", "See you soon", "Yesterday"),
-    ChatItem("Hassan", "Call me when free", "2 days ago")
-)
+// 🔥 REMOVED: ChatItem and dummyChats - now using real ChatEntity from database
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen() {
+fun HomeScreen(
+    navController: NavController? = null
+) {
+    // 🔥 SETUP VIEWMODEL WITH FACTORY
+    val context = LocalContext.current
+    val repository = ChatRepository(context)
+    val currentUserId = "current_user" // 🔥 TODO: Get from authentication system
+    val viewModel: HomeScreenViewModel = viewModel(
+        factory = HomeViewModelFactory(repository, currentUserId)
+    )
+    
+    // 🔥 COLLECT UI STATE FROM VIEWMODEL
+    val uiState by viewModel.uiState.collectAsState()
+    
+    // 🔥 Add sample data for testing (remove in production)
+    LaunchedEffect(Unit) { 
+        viewModel.addSampleData() // This adds chats for current user
+    }
+    
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
-
-    var isSearching by remember { mutableStateOf(false) }
-    var searchQuery by remember { mutableStateOf("") }
-
-    // Filtered chats based on search query
-    val filteredChats = if (searchQuery.isEmpty()) {
-        dummyChats
-    } else {
-        dummyChats.filter {
-            it.name.contains(searchQuery, ignoreCase = true) ||
-                    it.lastMessage.contains(searchQuery, ignoreCase = true)
-        }
-    }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -110,16 +103,48 @@ fun HomeScreen() {
             topBar = {
                 TopAppBar(
                     title = {
-                        if (isSearching) {
+                        // 🔥 USE VIEWMODEL SEARCH STATE
+                        if (uiState.isSearching) {
                             TextField(
-                                value = searchQuery,
-                                onValueChange = { searchQuery = it },
-                                placeholder = { Text("Search chats") },
+                                value = uiState.searchQuery,
+                                onValueChange = { viewModel.updateSearchQuery(it) },
+                                placeholder = { 
+                                    Text(
+                                        "Search chats...",
+                                        color = Color.Gray
+                                    ) 
+                                },
                                 singleLine = true,
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = TextFieldDefaults.colors(
+                                    focusedContainerColor = Color.Transparent,
+                                    unfocusedContainerColor = Color.Transparent,
+                                    focusedIndicatorColor = Color.Transparent,
+                                    unfocusedIndicatorColor = Color.Transparent
+                                ),
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Search,
+                                        contentDescription = "Search",
+                                        tint = Color.Gray
+                                    )
+                                },
+                                trailingIcon = {
+                                    if (uiState.searchQuery.isNotEmpty()) {
+                                        IconButton(
+                                            onClick = { viewModel.updateSearchQuery("") }
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Clear,
+                                                contentDescription = "Clear search",
+                                                tint = Color.Gray
+                                            )
+                                        }
+                                    }
+                                }
                             )
                         } else {
-                            Text("Chats")
+                            Text("Chats (${uiState.chats.size})")
                         }
                     },
                     navigationIcon = {
@@ -128,25 +153,153 @@ fun HomeScreen() {
                         }
                     },
                     actions = {
+                        // 🔥 USE VIEWMODEL SEARCH TOGGLE
                         IconButton(
-                            onClick = {
-                                isSearching = !isSearching
-                                if (!isSearching) searchQuery = ""
-                            }
+                            onClick = { viewModel.toggleSearch() }
                         ) {
-                            Icon(Icons.Default.Search, contentDescription = "Search")
+                            Icon(
+                                imageVector = if (uiState.isSearching) Icons.Default.Close else Icons.Default.Search,
+                                contentDescription = if (uiState.isSearching) "Close search" else "Search"
+                            )
                         }
                     }
                 )
             }
         ) { innerPadding ->
-            LazyColumn(
+            
+            // 🔥 USE VIEWMODEL UI STATE FOR DIFFERENT SCREENS
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
-                items(filteredChats) { chat ->
-                    ChatRow(chat)
+                when {
+                    // Loading state
+                    uiState.shouldShowLoading -> {
+                        Column(
+                            modifier = Modifier.align(Alignment.Center),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            CircularProgressIndicator()
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "Loading chats...",
+                                color = Color.Gray
+                            )
+                        }
+                    }
+                    
+                    // Empty state
+                    uiState.shouldShowEmpty -> {
+                        Column(
+                            modifier = Modifier.align(Alignment.Center),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                imageVector = if (uiState.searchQuery.isNotEmpty()) Icons.Default.SearchOff else Icons.AutoMirrored.Filled.Chat,
+                                contentDescription = if (uiState.searchQuery.isNotEmpty()) "No search results" else "No chats",
+                                modifier = Modifier.size(64.dp),
+                                tint = Color.Gray
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = if (uiState.searchQuery.isNotEmpty()) {
+                                    "No chats found for \"${uiState.searchQuery}\""
+                                } else {
+                                    "No chats yet"
+                                },
+                                fontSize = 18.sp,
+                                color = Color.Gray,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = if (uiState.searchQuery.isNotEmpty()) {
+                                    "Try a different search term"
+                                } else {
+                                    "Start a conversation!"
+                                },
+                                fontSize = 14.sp,
+                                color = Color.Gray
+                            )
+                        }
+                    }
+                    
+                    // Error state
+                    uiState.errorMessage != null -> {
+                        Column(
+                            modifier = Modifier.align(Alignment.Center),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Error,
+                                contentDescription = "Error",
+                                modifier = Modifier.size(64.dp),
+                                tint = Color.Red
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "Error loading chats",
+                                fontSize = 18.sp,
+                                color = Color.Red
+                            )
+                            Text(
+                                text = uiState.errorMessage ?: "Unknown error",
+                                fontSize = 14.sp,
+                                color = Color.Gray
+                            )
+                        }
+                    }
+                    
+                    // Show chats
+                    uiState.shouldShowChats -> {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            items(uiState.chats) { chatEntity ->
+                                // 🔥 USE NEW CHAT ROW FOR ENTITIES
+                                ChatRowFromEntity(
+                                    chatEntity = chatEntity,
+                                    onChatClick = { chatId ->
+                                        viewModel.onChatClicked(chatId)
+                                        // TODO: Navigate to chat details
+                                        println("🔥 Navigating to chat: $chatId")
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+                
+                // 🔥 SEARCH RESULTS INFO
+                if (uiState.isSearching && uiState.searchQuery.isNotEmpty() && uiState.chats.isNotEmpty()) {
+                    Card(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "Search results",
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "${uiState.chats.size} result${if (uiState.chats.size != 1) "s" else ""} for \"${uiState.searchQuery}\"",
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -173,23 +326,29 @@ fun DrawerItem(icon: ImageVector, text: String, onClick: () -> Unit) {
 }
 
 @Composable
-fun ChatRow(chat: ChatItem) {
+fun ChatRowFromEntity(
+    chatEntity: ChatEntity,
+    onChatClick: (String) -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { /* TODO: Navigate to chat detail */ }
+            .clickable { onChatClick(chatEntity.chatId) }
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-
+        // Profile picture placeholder
         Box(
             modifier = Modifier
                 .size(50.dp)
-                .background(Color.Gray, CircleShape),
+                .background(
+                    color = getColorForUser(chatEntity.otherUserId),
+                    shape = CircleShape
+                ),
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = chat.name.first().toString(),
+                text = chatEntity.otherUserId.firstOrNull()?.toString()?.uppercase() ?: "?",
                 color = Color.White,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold
@@ -200,22 +359,24 @@ fun ChatRow(chat: ChatItem) {
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = chat.name,
+                text = chatEntity.otherUserId,
                 fontWeight = FontWeight.Bold,
                 fontSize = 18.sp
             )
             Text(
-                text = chat.lastMessage,
+                text = chatEntity.lastMessage ?: "No messages yet",
                 color = Color.Gray,
                 maxLines = 1
             )
         }
 
-        Text(
-            text = chat.time,
-            color = Color.Gray,
-            fontSize = 12.sp
-        )
+        Column(horizontalAlignment = Alignment.End) {
+            Text(
+                text = formatTimestamp(chatEntity.timestamp),
+                color = Color.Gray,
+                fontSize = 12.sp
+            )
+        }
     }
     HorizontalDivider(
         color = Color.LightGray,
@@ -223,8 +384,53 @@ fun ChatRow(chat: ChatItem) {
         modifier = Modifier.padding(horizontal = 16.dp)
     )
 }
+
+/**
+ * Generate consistent color for each user
+ */
+private fun getColorForUser(userId: String): Color {
+    val colors = listOf(
+        Color(0xFF2196F3), // Blue
+        Color(0xFF4CAF50), // Green  
+        Color(0xFFFF9800), // Orange
+        Color(0xFF9C27B0), // Purple
+        Color(0xFFF44336), // Red
+        Color(0xFF607D8B), // Blue Grey
+        Color(0xFF795548), // Brown
+        Color(0xFF009688)  // Teal
+    )
+    return colors[userId.hashCode().mod(colors.size)]
+}
+
+/**
+ * Format timestamp for display
+ */
+private fun formatTimestamp(timestamp: Long): String {
+    val now = System.currentTimeMillis()
+    val diff = now - timestamp
+    
+    return when {
+        diff < 60_000 -> "Just now"
+        diff < 3600_000 -> "${diff / 60_000}m ago"
+        diff < 86400_000 -> {
+            val formatter = SimpleDateFormat("HH:mm", Locale.getDefault())
+            formatter.format(Date(timestamp))
+        }
+        diff < 604800_000 -> {
+            val formatter = SimpleDateFormat("EEE", Locale.getDefault())
+            formatter.format(Date(timestamp))
+        }
+        else -> {
+            val formatter = SimpleDateFormat("MMM dd", Locale.getDefault())
+            formatter.format(Date(timestamp))
+        }
+    }
+}
+
+// 🔥 REMOVED: Old ChatRow function - now using ChatRowFromEntity with real ChatEntity data
 @Preview
 @Composable
 fun HomeScreenPreview() {
+    // 🔥 Preview now uses real ViewModel with database
     HomeScreen()
 }

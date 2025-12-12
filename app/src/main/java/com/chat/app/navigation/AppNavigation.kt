@@ -25,7 +25,7 @@ fun AppNavigation() {
         }
 
         composable(Routes.HOME) {
-            HomeScreen()
+            HomeScreen(navController)
         }
     }
 }
