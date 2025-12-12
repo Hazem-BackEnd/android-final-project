@@ -58,7 +58,20 @@ fun AppNavigation() {
         }
 
         composable("home") {
-            HomeScreen()
+            HomeScreen(navController)
         }
+
+        composable("chat_detail/{name}") { backStackEntry ->
+            val name = backStackEntry.arguments?.getString("name") ?: ""
+            val messages = backStackEntry.arguments?.getParcelableArrayList<Message>("messages") ?: arrayListOf()
+
+            ChatDetailScreen(name, messages, navController)
+        }
+
+        composable("profile") {
+            ProfileScreen(navController)
+        }
+
+
     }
 }

@@ -39,7 +39,6 @@ fun RegisterScreen(navController: NavController) {
 
     var imageUri by remember { mutableStateOf<Uri?>(null) }
 
-
     var showPermissionDialog by remember { mutableStateOf(false) }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -60,9 +59,7 @@ fun RegisterScreen(navController: NavController) {
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(192, 192, 192)
-                )
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(192, 192, 192))
             )
         }
     ) { innerPadding ->
@@ -91,7 +88,7 @@ fun RegisterScreen(navController: NavController) {
                             .size(250.dp)
                             .align(Alignment.Center)
                             .clip(CircleShape)
-                            .background(Color(192, 192, 192))
+                            .background(Color.Gray)
                             .clickable { imagePickerLauncher.launch("image/*") },
                         contentAlignment = Alignment.Center
                     ) {
@@ -178,9 +175,15 @@ fun RegisterScreen(navController: NavController) {
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                //  Show popup
+                // CREATE ACCOUNT BUTTON
                 Button(
                     onClick = {
+                        // Save user info globally
+                        CurrentUser.user.username = username
+                        CurrentUser.user.phone = phone
+                        CurrentUser.user.email = email
+                        CurrentUser.user.profileUri = imageUri
+
                         showPermissionDialog = true
                     },
                     modifier = Modifier
@@ -199,7 +202,7 @@ fun RegisterScreen(navController: NavController) {
         }
     }
 
-
+    // POPUP DIALOG
     if (showPermissionDialog) {
         AlertDialog(
             onDismissRequest = { showPermissionDialog = false },
@@ -207,23 +210,16 @@ fun RegisterScreen(navController: NavController) {
             text = { Text("This app needs access to your contacts to continue.") },
             confirmButton = {
                 TextButton(onClick = {
-
-
                     showPermissionDialog = false
-
-
                     navController.navigate("home") {
                         popUpTo("register") { inclusive = true }
                     }
-
                 }) {
                     Text("Allow")
                 }
             },
             dismissButton = {
-                TextButton(onClick = {
-                    showPermissionDialog = false
-                }) {
+                TextButton(onClick = { showPermissionDialog = false }) {
                     Text("Cancel")
                 }
             }
