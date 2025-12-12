@@ -72,6 +72,10 @@ fun AppNavigation() {
             ProfileScreen(navController)
         }
 
+        composable("settings") {
+            SettingsScreen(navController)
+        }
+
 
     }
 }

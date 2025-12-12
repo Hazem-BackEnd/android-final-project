@@ -56,7 +56,8 @@ fun HomeScreen(navController: NavController) {
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            ModalDrawerSheet(Modifier.width(250.dp)) {
+            ModalDrawerSheet(Modifier.width(250.dp)
+                .background(Color(192, 192, 192)) ) {
                 // Profile Section
                 Column(
                     modifier = Modifier
@@ -96,7 +97,7 @@ fun HomeScreen(navController: NavController) {
                 }
 
                 HorizontalDivider(
-                    color = Color.LightGray,
+                    color = Color.Black,
                     thickness = 1.dp,
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
@@ -111,13 +112,17 @@ fun HomeScreen(navController: NavController) {
                     HorizontalDivider(color = Color.LightGray, thickness = 1.dp, modifier = Modifier.padding(horizontal = 16.dp))
                     DrawerItem(Icons.Default.Contacts, "Contacts") { /* TODO */ }
                     HorizontalDivider(color = Color.LightGray, thickness = 1.dp, modifier = Modifier.padding(horizontal = 16.dp))
-                    DrawerItem(Icons.Default.Settings, "Settings") { /* TODO */ }
+                    DrawerItem(Icons.Default.Settings, "Settings") {
+                        navController.navigate("settings")
+                    }
                     HorizontalDivider(color = Color.LightGray, thickness = 1.dp, modifier = Modifier.padding(horizontal = 16.dp))
                     DrawerItem(Icons.Default.Logout, "Logout") {
                         navController.navigate("login") {
                             popUpTo("home") { inclusive = true }
                         }
-                    }                }
+                    }
+                    HorizontalDivider(color = Color.LightGray, thickness = 1.dp, modifier = Modifier.padding(horizontal = 16.dp))
+                }
             }
         }
     ) {
