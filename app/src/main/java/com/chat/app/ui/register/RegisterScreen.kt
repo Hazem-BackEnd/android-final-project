@@ -26,22 +26,38 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.chat.app.R
+import com.chat.app.navigation.Routes
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RegisterScreen(navController: NavController) {
-
+fun RegisterScreen(
+    navController: NavController,
+    viewModel: RegisterViewModel = hiltViewModel()
+) {
     var username by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-
     var imageUri by remember { mutableStateOf<Uri?>(null) }
-
-
     var showPermissionDialog by remember { mutableStateOf(false) }
+    
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    
+    // Handle state changes
+    LaunchedEffect(state) {
+        when (state) {
+            is SignUpState.Success -> {
+                navController.navigate(Routes.HOME) {
+                    popUpTo(Routes.REGISTER) { inclusive = true }
+                }
+            }
+            else -> {}
+        }
+    }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -179,22 +195,42 @@ fun RegisterScreen(navController: NavController) {
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                //  Show popup
+                // Error message
+                if (state == SignUpState.Error) {
+                    Text(
+                        text = "Registration failed. Please try again.",
+                        color = Color.Red,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                }
+
                 Button(
                     onClick = {
-                        showPermissionDialog = true
+                        if (username.isNotBlank() && phone.isNotBlank() && 
+                            email.isNotBlank() && password.isNotBlank()) {
+                            viewModel.signUp(username, phone, email, password, imageUri)
+                        }
                     },
+                    enabled = state != SignUpState.Loading,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Black)
                 ) {
-                    Text(
-                        "Create Account",
-                        color = Color.White,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    if (state == SignUpState.Loading) {
+                        CircularProgressIndicator(
+                            color = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    } else {
+                        Text(
+                            "Create Account",
+                            color = Color.White,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }
@@ -208,15 +244,8 @@ fun RegisterScreen(navController: NavController) {
             text = { Text("This app needs access to your contacts to continue.") },
             confirmButton = {
                 TextButton(onClick = {
-
-
                     showPermissionDialog = false
-
-
-                    navController.navigate("home") {
-                        popUpTo("register") { inclusive = true }
-                    }
-
+                    // Navigation will be handled by LaunchedEffect when state becomes Success
                 }) {
                     Text("Allow")
                 }
