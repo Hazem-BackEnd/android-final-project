@@ -17,6 +17,7 @@ import androidx.compose.foundation.background
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavController
 
 
@@ -26,10 +27,17 @@ import androidx.navigation.NavController
 @Composable
 fun LoginScreen(navController: NavController) {
 
+    val context = LocalContext.current
+
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
+    LaunchedEffect(Unit) {
+        val savedUser = UserPrefs.loadUser(context)
+        CurrentUser.user = savedUser
+        email = savedUser.email
 
+    }
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -53,7 +61,7 @@ fun LoginScreen(navController: NavController) {
                     .padding(bottom = 28.dp)
             )
 
-            //  EMAIL FIELD
+            //  EMAIL
             OutlinedTextField(
                 value = email,
                 onValueChange = { email = it },
@@ -71,7 +79,7 @@ fun LoginScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // PASSWORD FIELD
+            // PASSWORD
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
@@ -139,7 +147,7 @@ fun LoginScreen(navController: NavController) {
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier
                     .clickable {
-                        // TODO: Navigate to Forgot Password screen
+                        // Navigate to Forgot Password screen
                     }
                     .padding(top = 8.dp)
             )

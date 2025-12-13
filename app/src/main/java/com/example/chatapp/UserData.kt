@@ -1,5 +1,6 @@
 package com.example.chatapp
 
+import android.content.Context
 import android.net.Uri
 
 data class UserData(
@@ -8,7 +9,14 @@ data class UserData(
     var email: String = "",
     var profileUri: Uri? = null
 )
-
 object CurrentUser {
-    val user = UserData()
+    var user: UserData = UserData()
+
+    fun load(context: Context) {
+        user = UserPrefs.loadUser(context)
+    }
+
+    fun save(context: Context) {
+        UserPrefs.saveUser(context, user.username, user.phone, user.email, user.profileUri)
+    }
 }

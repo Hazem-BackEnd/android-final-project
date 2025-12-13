@@ -47,6 +47,7 @@ fun ChatDetailScreen(
     val scope = rememberCoroutineScope()
     val timeFormatter = SimpleDateFormat("hh:mm a", Locale.getDefault())
 
+
     Box(modifier = Modifier.fillMaxSize()) {
 
         // Background image
@@ -92,7 +93,9 @@ fun ChatDetailScreen(
                                 val currentTime = timeFormatter.format(Date())
                                 messagesState.add(Message(inputText, isUser = true, time = currentTime))
                                 inputText = ""
-                                scope.launch { listState.animateScrollToItem(messagesState.size - 1) }
+                                scope.launch {
+                                    listState.animateScrollToItem(messagesState.size - 1)
+                                }
 
                                 // Optional: Simulate auto-reply
                                 scope.launch {
