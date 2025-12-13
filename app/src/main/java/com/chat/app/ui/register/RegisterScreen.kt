@@ -46,6 +46,7 @@ fun RegisterScreen(
     var showPermissionDialog by remember { mutableStateOf(false) }
     
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val validationErrors by viewModel.validationErrors.collectAsStateWithLifecycle()
     
     // Handle state changes
     LaunchedEffect(state) {
@@ -153,70 +154,181 @@ fun RegisterScreen(
                 // TEXT FIELDS
                 OutlinedTextField(
                     value = username,
-                    onValueChange = { username = it },
+                    onValueChange = { 
+                        username = it
+                        viewModel.validateField("username", it)
+                    },
                     label = { Text("Username") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    isError = validationErrors.containsKey("username"),
+                    supportingText = {
+                        validationErrors["username"]?.let { error ->
+                            Text(
+                                text = error,
+                                color = MaterialTheme.colorScheme.error,
+                                fontSize = 12.sp
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = if (validationErrors.containsKey("username")) Color.Red else Color.Black,
+                        unfocusedBorderColor = if (validationErrors.containsKey("username")) Color.Red else Color.Black
+                    )
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
                 OutlinedTextField(
                     value = phone,
-                    onValueChange = { phone = it },
+                    onValueChange = { 
+                        phone = it
+                        viewModel.validateField("phone", it)
+                    },
                     label = { Text("Phone") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                    modifier = Modifier.fillMaxWidth()
+                    isError = validationErrors.containsKey("phone"),
+                    supportingText = {
+                        validationErrors["phone"]?.let { error ->
+                            Text(
+                                text = error,
+                                color = MaterialTheme.colorScheme.error,
+                                fontSize = 12.sp
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = if (validationErrors.containsKey("phone")) Color.Red else Color.Black,
+                        unfocusedBorderColor = if (validationErrors.containsKey("phone")) Color.Red else Color.Black
+                    )
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
                 OutlinedTextField(
                     value = email,
-                    onValueChange = { email = it },
+                    onValueChange = { 
+                        email = it
+                        viewModel.validateField("email", it)
+                    },
                     label = { Text("Email") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                    modifier = Modifier.fillMaxWidth()
+                    isError = validationErrors.containsKey("email"),
+                    supportingText = {
+                        validationErrors["email"]?.let { error ->
+                            Text(
+                                text = error,
+                                color = MaterialTheme.colorScheme.error,
+                                fontSize = 12.sp
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = if (validationErrors.containsKey("email")) Color.Red else Color.Black,
+                        unfocusedBorderColor = if (validationErrors.containsKey("email")) Color.Red else Color.Black
+                    )
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
                 OutlinedTextField(
                     value = password,
-                    onValueChange = { password = it },
+                    onValueChange = { 
+                        password = it
+                        viewModel.validateField("password", it)
+                    },
                     label = { Text("Password") },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    modifier = Modifier.fillMaxWidth()
+                    isError = validationErrors.containsKey("password"),
+                    supportingText = {
+                        validationErrors["password"]?.let { error ->
+                            Text(
+                                text = error,
+                                color = MaterialTheme.colorScheme.error,
+                                fontSize = 12.sp
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = if (validationErrors.containsKey("password")) Color.Red else Color.Black,
+                        unfocusedBorderColor = if (validationErrors.containsKey("password")) Color.Red else Color.Black
+                    )
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Error message
-                if (state == SignUpState.Error) {
-                    Text(
-                        text = "Registration failed. Please try again.",
-                        color = Color.Red,
-                        fontSize = 14.sp,
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
+                // Error messages
+                val currentState = state
+                when (currentState) {
+                    is SignUpState.Error -> {
+                        Text(
+                            text = currentState.message,
+                            color = Color.Red,
+                            fontSize = 14.sp,
+                            modifier = Modifier.padding(bottom = 16.dp)
+                        )
+                    }
+                    is SignUpState.ValidationError -> {
+                        Text(
+                            text = currentState.message,
+                            color = Color.Red,
+                            fontSize = 14.sp,
+                            modifier = Modifier.padding(bottom = 16.dp)
+                        )
+                    }
+                    else -> {}
+                }
+
+                // Validation requirements text
+                if (password.isNotEmpty() && validationErrors.containsKey("password")) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(255, 248, 225))
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp)
+                        ) {
+                            Text(
+                                text = "Password Requirements:",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                color = Color(139, 69, 19)
+                            )
+                            Text(
+                                text = "• At least 6 characters\n• Contains at least one letter\n• Contains at least one number",
+                                fontSize = 11.sp,
+                                color = Color(139, 69, 19)
+                            )
+                        }
+                    }
                 }
 
                 Button(
                     onClick = {
-                        if (username.isNotBlank() && phone.isNotBlank() && 
-                            email.isNotBlank() && password.isNotBlank()) {
-                            viewModel.signUp(username, phone, email, password, imageUri)
-                        }
+                        viewModel.signUp(username, phone, email, password, imageUri)
                     },
-                    enabled = state != SignUpState.Loading,
+                    enabled = state != SignUpState.Loading && 
+                              username.isNotBlank() && 
+                              phone.isNotBlank() && 
+                              email.isNotBlank() && 
+                              password.isNotBlank() &&
+                              validationErrors.isEmpty(),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Black)
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Black,
+                        disabledContainerColor = Color.Gray
+                    )
                 ) {
                     if (state == SignUpState.Loading) {
                         CircularProgressIndicator(
