@@ -18,7 +18,7 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner = "com.chat.app.HiltTestRunner"
     }
 
     buildTypes {
@@ -39,6 +39,14 @@ android {
     }
     buildFeatures {
         compose = true
+    }
+    
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "/META-INF/LICENSE.md"
+            excludes += "/META-INF/LICENSE-notice.md"
+        }
     }
 }
 
@@ -93,6 +101,9 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    androidTestImplementation("com.google.dagger:hilt-android-testing:2.48")
+    androidTestImplementation("io.mockk:mockk-android:1.13.8")
+    kspAndroidTest("com.google.dagger:hilt-compiler:2.48")
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 

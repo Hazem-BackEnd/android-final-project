@@ -29,12 +29,13 @@ import com.chat.app.navigation.Routes
 @Composable
 fun LoginScreen(
     navController: NavController,
-    viewModel: LoginViewModel = hiltViewModel()
+    viewModel: LoginViewModel? = null
 ) {
+    val actualViewModel = viewModel ?: hiltViewModel<LoginViewModel>()
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val state by actualViewModel.state.collectAsStateWithLifecycle()
     
     // Handle state changes
     LaunchedEffect(state) {
@@ -122,7 +123,7 @@ fun LoginScreen(
             Button(
                 onClick = {
                     if (email.isNotBlank() && password.isNotBlank()) {
-                        viewModel.signIn(email, password)
+                        actualViewModel.signIn(email, password)
                     }
                 },
                 enabled = state != SignInState.Loading,
