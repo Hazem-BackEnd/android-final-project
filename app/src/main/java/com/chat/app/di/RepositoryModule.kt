@@ -1,8 +1,10 @@
 package com.chat.app.di
 
 import android.content.Context
+import com.chat.app.data.local.dao.UserDao
 import com.chat.app.data.repository.AuthRepository
 import com.chat.app.data.repository.StorageRepository
+import com.chat.app.data.repository.UserRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -24,5 +26,11 @@ object RepositoryModule {
     @Singleton
     fun provideStorageRepository(@ApplicationContext context: Context): StorageRepository {
         return StorageRepository(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideUserRepository(userDao: UserDao): UserRepository {
+        return UserRepository(userDao)
     }
 }

@@ -1,0 +1,168 @@
+package com.chat.app.ui.profile
+
+import android.net.Uri
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.chat.app.data.local.entities.UserEntity
+import com.chat.app.data.repository.UserRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+@HiltViewModel
+class ProfileViewModel @Inject constructor(
+    private val userRepository: UserRepository
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(ProfileUiState())
+    val uiState = _uiState.asStateFlow()
+
+    private val _isEditing = MutableStateFlow(false)
+    val isEditing = _isEditing.asStateFlow()
+
+    fun loadUserProfile(uid: String) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+            
+            try {
+                val userEntity = userRepository.getUser(uid)
+                if (userEntity != null) {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        username = userEntity.fullName,
+                        phone = userEntity.phoneNumber,
+                        email = "", // UserEntity doesn't have email, we'll need to get it from SharedPreferences
+                        profileImageUrl = userEntity.profilePictureUrl,
+                        uid = userEntity.uid
+                    )
+                    
+                    // Load additional data from SharedPreferences if needed
+                    loadAdditionalUserData()
+                } else {
+                    // User not found in database, load from SharedPreferences
+                    loadFromSharedPreferences()
+                }
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = "Failed to load profile: ${e.message}"
+                )
+            }
+        }
+    }
+
+    private fun loadFromSharedPreferences() {
+        // This will be called from the UI with context
+        _uiState.value = _uiState.value.copy(isLoading = false)
+    }
+
+    private fun loadAdditionalUserData() {
+        // Load email and other data from SharedPreferences if needed
+        // This will be called from the UI with context
+    }
+
+    fun updateUsername(username: String) {
+        _uiState.value = _uiState.value.copy(username = username)
+    }
+
+    fun updatePhone(phone: String) {
+        _uiState.value = _uiState.value.copy(phone = phone)
+    }
+
+    fun updateEmail(email: String) {
+        _uiState.value = _uiState.value.copy(email = email)
+    }
+
+    fun updateProfileImage(uri: Uri?) {
+        _uiState.value = _uiState.value.copy(profileImageUri = uri)
+    }
+
+    fun toggleEditMode() {
+        _isEditing.value = !_isEditing.value
+        
+        if (!_isEditing.value) {
+            // Save changes when exiting edit mode
+            saveProfile()
+        }
+    }
+
+    fun saveProfile() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isSaving = true, errorMessage = null)
+            
+            try {
+                val currentState = _uiState.value
+                
+                // Save to database
+                val userEntity = UserEntity(
+                    uid = currentState.uid,
+                    fullName = currentState.username,
+                    phoneNumber = currentState.phone,
+                    profilePictureUrl = currentState.profileImageUrl
+                )
+                
+                userRepository.saveUserLocally(userEntity)
+                
+                _uiState.value = _uiState.value.copy(
+                    isSaving = false,
+                    successMessage = "Profile updated successfully"
+                )
+                
+                // Clear success message after a delay
+                kotlinx.coroutines.delay(2000)
+                _uiState.value = _uiState.value.copy(successMessage = null)
+                
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isSaving = false,
+                    errorMessage = "Failed to save profile: ${e.message}"
+                )
+            }
+        }
+    }
+
+    fun clearErrorMessage() {
+        _uiState.value = _uiState.value.copy(errorMessage = null)
+    }
+
+    fun clearSuccessMessage() {
+        _uiState.value = _uiState.value.copy(successMessage = null)
+    }
+
+    // Helper function to load from SharedPreferences (called from UI)
+    fun loadFromSharedPreferences(userData: UserData) {
+        _uiState.value = _uiState.value.copy(
+            isLoading = false,
+            username = userData.username,
+            phone = userData.phone,
+            email = userData.email,
+            profileImageUri = userData.profileUri
+        )
+    }
+
+    // Helper function to save to SharedPreferences (called from UI)
+    fun saveToSharedPreferences(): UserData {
+        val currentState = _uiState.value
+        return UserData(
+            username = currentState.username,
+            phone = currentState.phone,
+            email = currentState.email,
+            profileUri = currentState.profileImageUri
+        )
+    }
+}
+
+data class ProfileUiState(
+    val isLoading: Boolean = false,
+    val isSaving: Boolean = false,
+    val username: String = "",
+    val phone: String = "",
+    val email: String = "",
+    val profileImageUrl: String? = null,
+    val profileImageUri: Uri? = null,
+    val uid: String = "",
+    val errorMessage: String? = null,
+    val successMessage: String? = null
+)
