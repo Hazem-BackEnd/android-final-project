@@ -24,6 +24,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.chat.app.data.local.entities.ChatEntity
 import com.chat.app.data.repository.ChatRepository
+import com.chat.app.navigation.Routes
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -71,30 +72,52 @@ fun HomeScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                     modifier = Modifier.padding(vertical = 10.dp)
                 ) {
-                    DrawerItem(Icons.Default.Person, "My Profile") { /* TODO */ }
+                    DrawerItem(
+                        icon = Icons.Default.Person, 
+                        text = "My Profile"
+                    ) { 
+                        navController?.navigate(Routes.PROFILE)
+                        scope.launch { drawerState.close() }
+                    }
                     HorizontalDivider(
                         color = Color.LightGray,
                         thickness = 1.dp,
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
-                    DrawerItem(Icons.Default.Group, "New Group") { /* TODO */ }
+                    DrawerItem(
+                        icon = Icons.Default.Contacts, 
+                        text = "Contacts"
+                    ) { 
+                        navController?.navigate(Routes.CONTACTS)
+                        scope.launch { drawerState.close() }
+                    }
                     HorizontalDivider(
                         color = Color.LightGray,
                         thickness = 1.dp,
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
-                    DrawerItem(Icons.Default.Contacts, "Contacts") { /* TODO */ }
+                    DrawerItem(
+                        icon = Icons.Default.Settings, 
+                        text = "Settings"
+                    ) { 
+                        navController?.navigate(Routes.SETTINGS)
+                        scope.launch { drawerState.close() }
+                    }
                     HorizontalDivider(
                         color = Color.LightGray,
                         thickness = 1.dp,
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
-                    DrawerItem(Icons.Default.Settings, "Settings") { /* TODO */ }
-                    HorizontalDivider(
-                        color = Color.LightGray,
-                        thickness = 1.dp,
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                    )
+                    DrawerItem(
+                        icon = Icons.Default.PowerSettingsNew, 
+                        text = "Logout"
+                    ) { 
+                        // Navigate back to login and clear the back stack
+                        navController?.navigate(Routes.LOGIN) {
+                            popUpTo(Routes.HOME) { inclusive = true }
+                        }
+                        scope.launch { drawerState.close() }
+                    }
                 }
             }
         }
