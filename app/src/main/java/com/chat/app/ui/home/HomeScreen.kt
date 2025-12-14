@@ -105,7 +105,8 @@ fun HomeScreen(
                         icon = Icons.Default.PowerSettingsNew, 
                         text = "Logout"
                     ) { 
-                        // Navigate back to login and clear the back stack
+                        // Call logout from ViewModel and then navigate
+                        viewModel.logout()
                         navController?.navigate(Routes.LOGIN) {
                             popUpTo(Routes.HOME) { inclusive = true }
                         }
