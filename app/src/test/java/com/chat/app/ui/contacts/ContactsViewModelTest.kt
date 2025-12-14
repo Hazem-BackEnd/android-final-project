@@ -1,11 +1,15 @@
 package com.chat.app.ui.contacts
 
 import app.cash.turbine.test
+import com.chat.app.data.local.entities.ChatEntity
 import com.chat.app.data.local.entities.UserEntity
+import com.chat.app.data.repository.ChatRepository
 import com.chat.app.data.repository.ContactsRepository
+import com.chat.app.data.repository.UserRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import io.mockk.slot
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -24,13 +28,17 @@ class ContactsViewModelTest {
 
     private lateinit var viewModel: ContactsViewModel
     private lateinit var contactsRepository: ContactsRepository
+    private lateinit var userRepository: UserRepository
+    private lateinit var chatRepository: ChatRepository
     private val testDispatcher = StandardTestDispatcher()
 
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
         contactsRepository = mockk()
-        viewModel = ContactsViewModel(contactsRepository)
+        userRepository = mockk()
+        chatRepository = mockk()
+        viewModel = ContactsViewModel(contactsRepository, userRepository, chatRepository)
     }
 
     @After
@@ -263,6 +271,80 @@ class ContactsViewModelTest {
             val state = awaitItem()
             assertEquals(1, state.contacts.size)
             assertEquals("Alice Johnson", state.contacts[0].name)
+        }
+    }
+
+    @Test
+    fun `onContactClick should save user locally and create new chat`() = runTest {
+        // Given
+        val contact = Contact("1", "Alice Johnson", "+1234567890", false)
+        val userSlot = slot<UserEntity>()
+        val chatSlot = slot<ChatEntity>()
+        var callbackChatId = ""
+
+        coEvery { userRepository.saveUserLocally(capture(userSlot)) } returns Unit
+        coEvery { chatRepository.getChat(any()) } returns null
+        coEvery { chatRepository.createOrUpdateChat(capture(chatSlot)) } returns Unit
+
+        // When
+        viewModel.onContactClick(contact) { chatId ->
+            callbackChatId = chatId
+        }
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Then
+        coVerify { userRepository.saveUserLocally(any()) }
+        coVerify { chatRepository.createOrUpdateChat(any()) }
+        
+        assertEquals("1", userSlot.captured.uid)
+        assertEquals("Alice Johnson", userSlot.captured.fullName)
+        assertEquals("+1234567890", userSlot.captured.phoneNumber)
+        
+        assertEquals("chat_1", chatSlot.captured.chatId)
+        assertEquals("1", chatSlot.captured.otherUserId)
+        assertEquals("chat_1", callbackChatId)
+    }
+
+    @Test
+    fun `onContactClick should update existing chat timestamp`() = runTest {
+        // Given
+        val contact = Contact("1", "Alice Johnson", "+1234567890", false)
+        val existingChat = ChatEntity(
+            chatId = "chat_1",
+            otherUserId = "1",
+            lastMessage = "Hello",
+            timestamp = 1000L
+        )
+        val chatSlot = slot<ChatEntity>()
+
+        coEvery { userRepository.saveUserLocally(any()) } returns Unit
+        coEvery { chatRepository.getChat("chat_1") } returns existingChat
+        coEvery { chatRepository.createOrUpdateChat(capture(chatSlot)) } returns Unit
+
+        // When
+        viewModel.onContactClick(contact) { }
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Then
+        coVerify { chatRepository.createOrUpdateChat(any()) }
+        assertTrue(chatSlot.captured.timestamp > 1000L)
+        assertEquals("Hello", chatSlot.captured.lastMessage)
+    }
+
+    @Test
+    fun `onContactClick should handle repository error`() = runTest {
+        // Given
+        val contact = Contact("1", "Alice Johnson", "+1234567890", false)
+        coEvery { userRepository.saveUserLocally(any()) } throws Exception("Database error")
+
+        // When
+        viewModel.onContactClick(contact) { }
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Then
+        viewModel.uiState.test {
+            val state = awaitItem()
+            assertTrue(state.errorMessage?.contains("Failed to start chat") == true)
         }
     }
 }

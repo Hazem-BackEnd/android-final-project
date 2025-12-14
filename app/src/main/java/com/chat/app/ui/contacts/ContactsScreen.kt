@@ -192,8 +192,9 @@ fun ContactsScreen(
                             ContactItem(
                                 contact = contact,
                                 onContactClick = { 
-                                    // TODO: Navigate to chat with this contact
-                                    navController.navigate("chat_detail/${contact.name}")
+                                    viewModel.onContactClick(contact) { chatId ->
+                                        navController.navigate("chat_detail/$chatId")
+                                    }
                                 }
                             )
                         }

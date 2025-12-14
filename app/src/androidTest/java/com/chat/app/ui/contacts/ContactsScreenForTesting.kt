@@ -163,8 +163,8 @@ fun ContactsScreenForTesting(navController: NavController) {
                             ContactItem(
                                 contact = contact,
                                 onContactClick = { 
-                                    // TODO: Navigate to chat with this contact
-                                    navController.navigate("chat_detail/${contact.name}")
+                                    // For testing, directly navigate with contact name
+                                    navController.navigate("chat_detail/chat_${contact.id}")
                                 }
                             )
                         }
