@@ -26,38 +26,46 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.chat.app.R
-import com.chat.app.navigation.Routes
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RegisterScreen(
-    navController: NavController,
-    viewModel: RegisterViewModel = hiltViewModel()
-) {
+fun RegisterScreenForTesting(navController: NavController) {
     var username by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var imageUri by remember { mutableStateOf<Uri?>(null) }
     var showPermissionDialog by remember { mutableStateOf(false) }
+    var validationErrors by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     
-    val state by viewModel.state.collectAsStateWithLifecycle()
-    val validationErrors by viewModel.validationErrors.collectAsStateWithLifecycle()
-    
-    // Handle state changes
-    LaunchedEffect(state) {
-        when (state) {
-            is SignUpState.Success -> {
-                navController.navigate(Routes.HOME) {
-                    popUpTo(Routes.REGISTER) { inclusive = true }
-                }
+    // Simple validation for testing
+    fun validateField(fieldName: String, value: String) {
+        val errors = validationErrors.toMutableMap()
+        when (fieldName) {
+            "username" -> {
+                if (value.isBlank()) errors["username"] = "Username is required"
+                else if (value.length < 3) errors["username"] = "Username must be at least 3 characters"
+                else errors.remove("username")
             }
-            else -> {}
+            "phone" -> {
+                if (value.isBlank()) errors["phone"] = "Phone number is required"
+                else if (value.length < 10) errors["phone"] = "Phone number must be at least 10 digits"
+                else errors.remove("phone")
+            }
+            "email" -> {
+                if (value.isBlank()) errors["email"] = "Email is required"
+                else if (!value.contains("@")) errors["email"] = "Invalid email format"
+                else errors.remove("email")
+            }
+            "password" -> {
+                if (value.isBlank()) errors["password"] = "Password is required"
+                else if (value.length < 6) errors["password"] = "Password must be at least 6 characters"
+                else errors.remove("password")
+            }
         }
+        validationErrors = errors
     }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -156,7 +164,7 @@ fun RegisterScreen(
                     value = username,
                     onValueChange = { 
                         username = it
-                        viewModel.validateField("username", it)
+                        validateField("username", it)
                     },
                     label = { Text("Username") },
                     singleLine = true,
@@ -165,16 +173,12 @@ fun RegisterScreen(
                         validationErrors["username"]?.let { error ->
                             Text(
                                 text = error,
-                                color = MaterialTheme.colorScheme.error,
+                                color = Color.Red,
                                 fontSize = 12.sp
                             )
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = if (validationErrors.containsKey("username")) Color.Red else Color.Black,
-                        unfocusedBorderColor = if (validationErrors.containsKey("username")) Color.Red else Color.Black
-                    )
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -183,7 +187,7 @@ fun RegisterScreen(
                     value = phone,
                     onValueChange = { 
                         phone = it
-                        viewModel.validateField("phone", it)
+                        validateField("phone", it)
                     },
                     label = { Text("Phone") },
                     singleLine = true,
@@ -193,16 +197,12 @@ fun RegisterScreen(
                         validationErrors["phone"]?.let { error ->
                             Text(
                                 text = error,
-                                color = MaterialTheme.colorScheme.error,
+                                color = Color.Red,
                                 fontSize = 12.sp
                             )
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = if (validationErrors.containsKey("phone")) Color.Red else Color.Black,
-                        unfocusedBorderColor = if (validationErrors.containsKey("phone")) Color.Red else Color.Black
-                    )
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -211,7 +211,7 @@ fun RegisterScreen(
                     value = email,
                     onValueChange = { 
                         email = it
-                        viewModel.validateField("email", it)
+                        validateField("email", it)
                     },
                     label = { Text("Email") },
                     singleLine = true,
@@ -221,16 +221,12 @@ fun RegisterScreen(
                         validationErrors["email"]?.let { error ->
                             Text(
                                 text = error,
-                                color = MaterialTheme.colorScheme.error,
+                                color = Color.Red,
                                 fontSize = 12.sp
                             )
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = if (validationErrors.containsKey("email")) Color.Red else Color.Black,
-                        unfocusedBorderColor = if (validationErrors.containsKey("email")) Color.Red else Color.Black
-                    )
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -239,7 +235,7 @@ fun RegisterScreen(
                     value = password,
                     onValueChange = { 
                         password = it
-                        viewModel.validateField("password", it)
+                        validateField("password", it)
                     },
                     label = { Text("Password") },
                     singleLine = true,
@@ -250,74 +246,28 @@ fun RegisterScreen(
                         validationErrors["password"]?.let { error ->
                             Text(
                                 text = error,
-                                color = MaterialTheme.colorScheme.error,
+                                color = Color.Red,
                                 fontSize = 12.sp
                             )
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = if (validationErrors.containsKey("password")) Color.Red else Color.Black,
-                        unfocusedBorderColor = if (validationErrors.containsKey("password")) Color.Red else Color.Black
-                    )
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Error messages
-                val currentState = state
-                when (currentState) {
-                    is SignUpState.Error -> {
-                        Text(
-                            text = currentState.message,
-                            color = Color.Red,
-                            fontSize = 14.sp,
-                            modifier = Modifier.padding(bottom = 16.dp)
-                        )
-                    }
-                    is SignUpState.ValidationError -> {
-                        Text(
-                            text = currentState.message,
-                            color = Color.Red,
-                            fontSize = 14.sp,
-                            modifier = Modifier.padding(bottom = 16.dp)
-                        )
-                    }
-                    else -> {}
-                }
-
-                // Validation requirements text
-                if (password.isNotEmpty() && validationErrors.containsKey("password")) {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 16.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(255, 248, 225))
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(12.dp)
-                        ) {
-                            Text(
-                                text = "Password Requirements:",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp,
-                                color = Color(139, 69, 19)
-                            )
-                            Text(
-                                text = "• At least 6 characters\n• Contains at least one letter\n• Contains at least one number",
-                                fontSize = 11.sp,
-                                color = Color(139, 69, 19)
-                            )
-                        }
-                    }
-                }
-
                 Button(
                     onClick = {
-                        viewModel.signUp(username, phone, email, password, imageUri)
+                        if (username.isNotBlank() && phone.isNotBlank() && 
+                            email.isNotBlank() && password.isNotBlank() &&
+                            validationErrors.isEmpty()) {
+                            // Simple navigation for testing
+                            navController.navigate("home") {
+                                popUpTo("register") { inclusive = true }
+                            }
+                        }
                     },
-                    enabled = state != SignUpState.Loading && 
-                              username.isNotBlank() && 
+                    enabled = username.isNotBlank() && 
                               phone.isNotBlank() && 
                               email.isNotBlank() && 
                               password.isNotBlank() &&
@@ -330,24 +280,16 @@ fun RegisterScreen(
                         disabledContainerColor = Color.Gray
                     )
                 ) {
-                    if (state == SignUpState.Loading) {
-                        CircularProgressIndicator(
-                            color = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    } else {
-                        Text(
-                            "Create Account",
-                            color = Color.White,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                    Text(
+                        "Create Account",
+                        color = Color.White,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }
     }
-
 
     if (showPermissionDialog) {
         AlertDialog(
@@ -357,7 +299,6 @@ fun RegisterScreen(
             confirmButton = {
                 TextButton(onClick = {
                     showPermissionDialog = false
-                    // Navigation will be handled by LaunchedEffect when state becomes Success
                 }) {
                     Text("Allow")
                 }

@@ -17,38 +17,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.clickable
 import androidx.navigation.NavController
-import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.chat.app.R
-import com.chat.app.navigation.Routes
-
-
-
-
 
 @Composable
-fun LoginScreen(
-    navController: NavController,
-    viewModel: LoginViewModel? = null
-) {
-    val actualViewModel = viewModel ?: hiltViewModel<LoginViewModel>()
+fun LoginScreenForTesting(navController: NavController) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    
-    val state by actualViewModel.state.collectAsStateWithLifecycle()
-    
-    // Handle state changes
-    LaunchedEffect(state) {
-        when (state) {
-            is SignInState.Success -> {
-                navController.navigate(Routes.HOME) {
-                    popUpTo(Routes.LOGIN) { inclusive = true }
-                }
-            }
-            else -> {}
-        }
-    }
-
 
     Box(
         modifier = Modifier
@@ -63,7 +37,6 @@ fun LoginScreen(
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-
 
             Image(
                 painter = painterResource(id = R.drawable.icon),
@@ -81,8 +54,7 @@ fun LoginScreen(
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 modifier = Modifier
-                    .fillMaxWidth()
-                    ,
+                    .fillMaxWidth(),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color.Black,
                     unfocusedBorderColor = Color.Black
@@ -100,8 +72,7 @@ fun LoginScreen(
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 modifier = Modifier
-                    .fillMaxWidth()
-                     ,
+                    .fillMaxWidth(),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color.Black,
                     unfocusedBorderColor = Color.Black
@@ -110,23 +81,13 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Error message
-            if (state == SignInState.Error) {
-                Text(
-                    text = "Login failed. Please check your credentials.",
-                    color = Color.Red,
-                    fontSize = 14.sp,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
-            }
-
             Button(
                 onClick = {
-                    if (email.isNotBlank() && password.isNotBlank()) {
-                        actualViewModel.signIn(email, password)
+                    // Simple navigation for testing
+                    navController.navigate("home") {
+                        popUpTo("login") { inclusive = true }
                     }
                 },
-                enabled = state != SignInState.Loading,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
@@ -134,22 +95,15 @@ fun LoginScreen(
                     containerColor = Color.Black
                 )
             ) {
-                if (state == SignInState.Loading) {
-                    CircularProgressIndicator(
-                        color = Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
-                } else {
-                    Text("Login", color = Color.White, fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold)
-                }
+                Text("Login", color = Color.White, fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold)
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
             Button(
                 onClick = {
-                    navController.navigate(Routes.REGISTER)
+                    navController.navigate("register")
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -157,7 +111,6 @@ fun LoginScreen(
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color.Black
                 )
-
             ) {
                 Text(
                     "Register",
