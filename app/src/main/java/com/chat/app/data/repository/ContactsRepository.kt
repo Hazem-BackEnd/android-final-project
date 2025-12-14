@@ -3,8 +3,14 @@ package com.chat.app.data.repository
 import android.content.Context
 import android.provider.ContactsContract
 import com.chat.app.data.local.entities.UserEntity
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class ContactsRepository(private val context: Context) {
+@Singleton
+class ContactsRepository @Inject constructor(
+    @ApplicationContext private val context: Context
+) {
 
     fun getDeviceContacts(): List<UserEntity> {
         val contacts = mutableListOf<UserEntity>()

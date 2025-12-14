@@ -1,8 +1,11 @@
 package com.chat.app.di
 
 import android.content.Context
+import com.chat.app.data.local.dao.ChatDao
 import com.chat.app.data.local.dao.UserDao
 import com.chat.app.data.repository.AuthRepository
+import com.chat.app.data.repository.ChatRepository
+import com.chat.app.data.repository.ContactsRepository
 import com.chat.app.data.repository.StorageRepository
 import com.chat.app.data.repository.UserRepository
 import dagger.Module
@@ -32,5 +35,17 @@ object RepositoryModule {
     @Singleton
     fun provideUserRepository(userDao: UserDao): UserRepository {
         return UserRepository(userDao)
+    }
+
+    @Provides
+    @Singleton
+    fun provideContactsRepository(@ApplicationContext context: Context): ContactsRepository {
+        return ContactsRepository(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideChatRepository(chatDao: ChatDao): ChatRepository {
+        return ChatRepository(chatDao)
     }
 }

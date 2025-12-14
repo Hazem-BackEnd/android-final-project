@@ -3,9 +3,12 @@ package com.chat.app.ui.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chat.app.data.local.entities.ChatEntity
+import com.chat.app.data.repository.AuthRepository
 import com.chat.app.data.repository.ChatRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 data class HomeUiState(
     val chats: List<ChatEntity> = emptyList(),
@@ -20,10 +23,13 @@ data class HomeUiState(
     val shouldShowChats: Boolean get() = !isLoading && chats.isNotEmpty()
 }
 
-class HomeScreenViewModel(
+@HiltViewModel
+class HomeScreenViewModel @Inject constructor(
     private val chatRepository: ChatRepository,
-    private val currentUserId: String = "current_user"
+    private val authRepository: AuthRepository
 ): ViewModel(){
+    
+    private val currentUserId: String = "current_user" // TODO: Get from authentication
     
     // Private mutable state
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -96,6 +102,18 @@ class HomeScreenViewModel(
     fun onChatClicked(chatId: String) {
         println("🔥 Chat clicked: $chatId")
         // Navigation will be handled in the UI layer
+    }
+
+    fun logout() {
+        viewModelScope.launch {
+            try {
+                authRepository.logout()
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    errorMessage = "Failed to logout: ${e.message}"
+                )
+            }
+        }
     }
     /**
      * 🔥 UPDATED: Add sample data with proper chat IDs for current user
