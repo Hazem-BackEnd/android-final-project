@@ -20,10 +20,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.chat.app.data.local.entities.ChatEntity
-import com.chat.app.data.repository.ChatRepository
 import com.chat.app.navigation.Routes
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -34,15 +33,9 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    navController: NavController? = null
+    navController: NavController? = null,
+    viewModel: HomeScreenViewModel = hiltViewModel()
 ) {
-    // 🔥 SETUP VIEWMODEL WITH FACTORY
-    val context = LocalContext.current
-    val repository = ChatRepository(context)
-    val currentUserId = "current_user" // 🔥 TODO: Get from authentication system
-    val viewModel: HomeScreenViewModel = viewModel(
-        factory = HomeViewModelFactory(repository, currentUserId)
-    )
     
     // 🔥 COLLECT UI STATE FROM VIEWMODEL
     val uiState by viewModel.uiState.collectAsState()
@@ -112,7 +105,8 @@ fun HomeScreen(
                         icon = Icons.Default.PowerSettingsNew, 
                         text = "Logout"
                     ) { 
-                        // Navigate back to login and clear the back stack
+                        // Call logout from ViewModel and then navigate
+                        viewModel.logout()
                         navController?.navigate(Routes.LOGIN) {
                             popUpTo(Routes.HOME) { inclusive = true }
                         }

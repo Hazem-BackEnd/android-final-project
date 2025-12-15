@@ -1,12 +1,15 @@
 package com.chat.app.data.repository
 
-import android.content.Context
-import com.chat.app.data.local.AppDatabase
+import com.chat.app.data.local.dao.ChatDao
 import com.chat.app.data.local.entities.ChatEntity
 import kotlinx.coroutines.flow.Flow
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class ChatRepository(context: Context) {
-    private val chatDao = AppDatabase.getDatabase(context).chatDao()
+@Singleton
+class ChatRepository @Inject constructor(
+    private val chatDao: ChatDao
+) {
 
     val allChats: Flow<List<ChatEntity>> = chatDao.getAllChats()
 
