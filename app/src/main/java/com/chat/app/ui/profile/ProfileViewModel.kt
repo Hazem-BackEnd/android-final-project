@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chat.app.data.local.entities.UserEntity
+import com.chat.app.data.repository.AuthRepository
 import com.chat.app.data.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,7 +14,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ProfileUiState())
@@ -22,7 +24,23 @@ class ProfileViewModel @Inject constructor(
     private val _isEditing = MutableStateFlow(false)
     val isEditing = _isEditing.asStateFlow()
 
-    fun loadUserProfile(uid: String) {
+    init {
+        loadCurrentUserProfile()
+    }
+
+    fun loadCurrentUserProfile() {
+        val currentUserId = authRepository.getCurrentUserId()
+        if (currentUserId != null) {
+            loadUserProfile(currentUserId)
+        } else {
+            _uiState.value = _uiState.value.copy(
+                isLoading = false,
+                errorMessage = "No user is currently logged in"
+            )
+        }
+    }
+
+    private fun loadUserProfile(uid: String) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
             
@@ -33,16 +51,19 @@ class ProfileViewModel @Inject constructor(
                         isLoading = false,
                         username = userEntity.fullName,
                         phone = userEntity.phoneNumber,
-                        email = "", // UserEntity doesn't have email, we'll need to get it from SharedPreferences
+                        email = "userEntity.email",
                         profileImageUrl = userEntity.profilePictureUrl,
                         uid = userEntity.uid
                     )
-                    
-                    // Load additional data from SharedPreferences if needed
-                    loadAdditionalUserData()
                 } else {
-                    // User not found in database, load from SharedPreferences
-                    loadFromSharedPreferences()
+                    // User not found in database, show empty state
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        username = "",
+                        phone = "",
+                        email = "",
+                        uid = uid
+                    )
                 }
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
@@ -51,16 +72,6 @@ class ProfileViewModel @Inject constructor(
                 )
             }
         }
-    }
-
-    private fun loadFromSharedPreferences() {
-        // This will be called from the UI with context
-        _uiState.value = _uiState.value.copy(isLoading = false)
-    }
-
-    private fun loadAdditionalUserData() {
-        // Load email and other data from SharedPreferences if needed
-        // This will be called from the UI with context
     }
 
     fun updateUsername(username: String) {
@@ -94,12 +105,22 @@ class ProfileViewModel @Inject constructor(
             
             try {
                 val currentState = _uiState.value
+                val currentUserId = authRepository.getCurrentUserId()
                 
-                // Save to database
+                if (currentUserId == null) {
+                    _uiState.value = _uiState.value.copy(
+                        isSaving = false,
+                        errorMessage = "No user is currently logged in"
+                    )
+                    return@launch
+                }
+                
+                // Save to database using UserRepository
                 val userEntity = UserEntity(
-                    uid = currentState.uid,
+                    uid = currentUserId,
                     fullName = currentState.username,
                     phoneNumber = currentState.phone,
+//                    email = "currentState.email",
                     profilePictureUrl = currentState.profileImageUrl
                 )
                 
@@ -131,18 +152,18 @@ class ProfileViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(successMessage = null)
     }
 
-    // Helper function to load from SharedPreferences (called from UI)
+    // Load from SharedPreferences as fallback
     fun loadFromSharedPreferences(userData: UserData) {
-        _uiState.value = _uiState.value.copy(
-            isLoading = false,
-            username = userData.username,
-            phone = userData.phone,
-            email = userData.email,
+        val currentState = _uiState.value
+        _uiState.value = currentState.copy(
+            username = if (currentState.username.isEmpty()) userData.username else currentState.username,
+            phone = if (currentState.phone.isEmpty()) userData.phone else currentState.phone,
+            email = userData.email, // Always use email from SharedPreferences
             profileImageUri = userData.profileUri
         )
     }
 
-    // Helper function to save to SharedPreferences (called from UI)
+    // Save to SharedPreferences
     fun saveToSharedPreferences(): UserData {
         val currentState = _uiState.value
         return UserData(
