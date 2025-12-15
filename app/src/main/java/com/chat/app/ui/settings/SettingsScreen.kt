@@ -181,12 +181,18 @@ fun SettingsScreen(navController: NavController) {
                 modifier = Modifier.padding(vertical = 8.dp)
             )
 
-            // About section
+            // About section with Random Quote from ZenQuotes API
             Column(modifier = Modifier.fillMaxWidth()) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { showAboutQuote = !showAboutQuote }
+                        .clickable { 
+                            showAboutQuote = !showAboutQuote
+                            // 🔥 Fetch a new random quote every time About is clicked
+                            if (!showAboutQuote.not()) {
+                                viewModel.fetchRandomQuote()
+                            }
+                        }
                         .padding(vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -197,21 +203,96 @@ fun SettingsScreen(navController: NavController) {
                     )
                     Spacer(modifier = Modifier.width(16.dp))
                     Text("About", fontSize = 18.sp)
+                    Spacer(modifier = Modifier.weight(1f))
+                    Icon(
+                        imageVector = if (showAboutQuote) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = if (showAboutQuote) "Collapse" else "Expand",
+                        tint = Color.Gray
+                    )
                 }
 
-                Divider(
+                HorizontalDivider(
                     color = Color.LightGray,
                     thickness = 1.dp,
                     modifier = Modifier.padding(vertical = 8.dp)
                 )
 
+                // 🔥 Show random quote from ZenQuotes API
                 if (showAboutQuote) {
-                    Text(
-                        text = "\"Communication is the key to connection.\"",
-                        fontSize = 16.sp,
-                        color = Color.Gray,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp)
+                        ) {
+                            if (uiState.isLoadingQuote) {
+                                // Loading state
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Loading quote...",
+                                        fontSize = 14.sp,
+                                        color = Color.Gray
+                                    )
+                                }
+                            } else if (uiState.hasQuote) {
+                                // Quote display
+                                Text(
+                                    text = "\"${uiState.quote}\"",
+                                    fontSize = 16.sp,
+                                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                if (uiState.quoteAuthor.isNotEmpty()) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "— ${uiState.quoteAuthor}",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.align(Alignment.End)
+                                    )
+                                }
+                            } else {
+                                // Default state before first load
+                                Text(
+                                    text = "Tap to load a quote",
+                                    fontSize = 14.sp,
+                                    color = Color.Gray
+                                )
+                            }
+                            
+                            Spacer(modifier = Modifier.height(12.dp))
+                            
+                            // New Quote button
+                            OutlinedButton(
+                                onClick = { viewModel.fetchRandomQuote() },
+                                enabled = !uiState.isLoadingQuote,
+                                modifier = Modifier.align(Alignment.CenterHorizontally)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = "New Quote",
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("New Quote")
+                            }
+                        }
+                    }
                 }
             }
 

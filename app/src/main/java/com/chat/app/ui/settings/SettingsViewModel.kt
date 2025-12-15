@@ -2,6 +2,7 @@ package com.chat.app.ui.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chat.app.data.remote.api.QuotesApiService
 import com.chat.app.data.repository.AuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,10 +16,15 @@ data class SettingsUiState(
     val logoutSuccess: Boolean = false,
     val errorMessage: String? = null,
     val isDarkTheme: Boolean = false,
-    val notificationsEnabled: Boolean = true
+    val notificationsEnabled: Boolean = true,
+    // 🔥 Quote state
+    val quote: String = "",
+    val quoteAuthor: String = "",
+    val isLoadingQuote: Boolean = false
 ) {
     val shouldShowLoading: Boolean get() = isLoggingOut
     val shouldShowError: Boolean get() = errorMessage != null
+    val hasQuote: Boolean get() = quote.isNotEmpty()
 }
 
 class SettingsViewModel(
@@ -29,6 +35,9 @@ class SettingsViewModel(
     private val _uiState = MutableStateFlow(SettingsUiState())
     // Public read-only state
     val uiState = _uiState.asStateFlow()
+    
+    // 🔥 Quotes API Service (Retrofit)
+    private val quotesApiService = QuotesApiService()
 
     /**
      * Check if user is currently logged in
@@ -110,5 +119,32 @@ class SettingsViewModel(
         )
         // TODO: Implement actual notification settings logic
         println("🔔 Notifications toggled: ${_uiState.value.notificationsEnabled}")
+    }
+    
+    /**
+     * 🔥 Fetch a random quote from ZenQuotes API using Retrofit
+     */
+    fun fetchRandomQuote() {
+        _uiState.value = _uiState.value.copy(isLoadingQuote = true)
+        
+        viewModelScope.launch {
+            val result = quotesApiService.getRandomQuote()
+            
+            result.onSuccess { quote ->
+                _uiState.value = _uiState.value.copy(
+                    quote = quote.q,
+                    quoteAuthor = quote.a,
+                    isLoadingQuote = false
+                )
+                println("✅ Quote fetched: \"${quote.q}\" - ${quote.a}")
+            }.onFailure { error ->
+                _uiState.value = _uiState.value.copy(
+                    quote = "Failed to load quote",
+                    quoteAuthor = "",
+                    isLoadingQuote = false
+                )
+                println("❌ Quote fetch error: ${error.message}")
+            }
+        }
     }
 }
