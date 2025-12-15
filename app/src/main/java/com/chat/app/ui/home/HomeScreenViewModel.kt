@@ -42,7 +42,8 @@ class HomeScreenViewModel(
             _uiState.value = _uiState.value.copy(isLoading = true)
             
             try {
-                chatRepository.allChats
+                // 🔥 UPDATED: Use user-specific chat query instead of all chats
+                chatRepository.getChatsForUser(currentUserId)
                     .catch { exception ->
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
@@ -56,12 +57,14 @@ class HomeScreenViewModel(
                             isLoading = false,
                             errorMessage = null
                         )
+                        println("📱 Loaded ${chatList.size} chats for user: $currentUserId")
                     }
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     errorMessage = e.message
                 )
+                println("❌ Error loading chats: ${e.message}")
             }
         }
     }
@@ -81,17 +84,30 @@ class HomeScreenViewModel(
 
     private fun updateFilteredChats() {
         val currentState = _uiState.value
-        val filteredChats = if (currentState.searchQuery.isEmpty()) {
-            _allChats.value
+        
+        if (currentState.searchQuery.isEmpty()) {
+            // No search query - use all chats
+            _uiState.value = currentState.copy(chats = _allChats.value)
         } else {
-            _allChats.value.filter { chat ->
-                // Search in otherUserId and lastMessage
-                chat.otherUserId.contains(currentState.searchQuery, ignoreCase = true) ||
-                (chat.lastMessage?.contains(currentState.searchQuery, ignoreCase = true) == true)
+            // 🔥 UPDATED: Use database search for better performance
+            viewModelScope.launch {
+                try {
+                    chatRepository.searchChatsForUser(currentUserId, currentState.searchQuery)
+                        .collect { searchResults ->
+                            _uiState.value = _uiState.value.copy(chats = searchResults)
+                            println("🔍 Search results for '${currentState.searchQuery}': ${searchResults.size} chats")
+                        }
+                } catch (e: Exception) {
+                    // Fallback to in-memory search if database search fails
+                    val filteredChats = _allChats.value.filter { chat ->
+                        chat.otherUserId.contains(currentState.searchQuery, ignoreCase = true) ||
+                        (chat.lastMessage?.contains(currentState.searchQuery, ignoreCase = true) == true)
+                    }
+                    _uiState.value = currentState.copy(chats = filteredChats)
+                    println("⚠️ Database search failed, using in-memory search: ${e.message}")
+                }
             }
         }
-        
-        _uiState.value = currentState.copy(chats = filteredChats)
     }
     fun onChatClicked(chatId: String) {
         println("🔥 Chat clicked: $chatId")

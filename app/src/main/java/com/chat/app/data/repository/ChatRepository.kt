@@ -17,4 +17,13 @@ class ChatRepository(context: Context) {
     suspend fun getChat(chatId: String): ChatEntity? {
         return chatDao.getChatById(chatId)
     }
+    
+    // 🔥 NEW: User-specific methods
+    fun getChatsForUser(userId: String): Flow<List<ChatEntity>> {
+        return chatDao.getChatsForUser(userId)
+    }
+    
+    fun searchChatsForUser(userId: String, searchQuery: String): Flow<List<ChatEntity>> {
+        return chatDao.searchChatsForUser(userId, searchQuery)
+    }
 }

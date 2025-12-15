@@ -14,20 +14,43 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.chat.app.data.repository.AuthRepository
+import com.chat.app.navigation.Routes
 import com.chat.app.ui.profile.CurrentUser
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(navController: NavController) {
-
-    var isDarkTheme by remember { mutableStateOf(false) }
-    var notificationsEnabled by remember { mutableStateOf(true) }
+    // 🔥 SETUP VIEWMODEL WITH FACTORY
+    val context = LocalContext.current
+    val authRepository = AuthRepository()
+    val viewModel: SettingsViewModel = viewModel(
+        factory = SettingsViewModelFactory(authRepository)
+    )
+    
+    // 🔥 COLLECT UI STATE FROM VIEWMODEL
+    val uiState by viewModel.uiState.collectAsState()
+    
     var showAboutQuote by remember { mutableStateOf(false) }
+    var showLogoutDialog by remember { mutableStateOf(false) }
+    
+    // 🔥 HANDLE LOGOUT SUCCESS
+    LaunchedEffect(uiState.logoutSuccess) {
+        if (uiState.logoutSuccess) {
+            navController.navigate(Routes.LOGIN) {
+                popUpTo(Routes.HOME) { inclusive = true }
+            }
+            viewModel.resetLogoutState()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -97,7 +120,7 @@ fun SettingsScreen(navController: NavController) {
             HorizontalDivider(thickness = 1.dp, color = Color.LightGray)
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Dark Theme
+            // 🔥 DARK THEME - USING VIEWMODEL STATE
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -105,8 +128,8 @@ fun SettingsScreen(navController: NavController) {
             ) {
                 Text("Dark Theme", fontSize = 18.sp)
                 Switch(
-                    checked = isDarkTheme,
-                    onCheckedChange = { isDarkTheme = it }
+                    checked = uiState.isDarkTheme,
+                    onCheckedChange = { viewModel.toggleDarkTheme() }
                 )
             }
 
@@ -116,7 +139,7 @@ fun SettingsScreen(navController: NavController) {
                 modifier = Modifier.padding(vertical = 8.dp)
             )
 
-            // Notifications
+            // 🔥 NOTIFICATIONS - USING VIEWMODEL STATE
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -124,8 +147,8 @@ fun SettingsScreen(navController: NavController) {
             ) {
                 Text("Notifications", fontSize = 18.sp)
                 Switch(
-                    checked = notificationsEnabled,
-                    onCheckedChange = { notificationsEnabled = it }
+                    checked = uiState.notificationsEnabled,
+                    onCheckedChange = { viewModel.toggleNotifications() }
                 )
             }
 
@@ -194,20 +217,99 @@ fun SettingsScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // Logout
-            Button(
-                onClick = {
-                    navController.navigate("login") {
-                        popUpTo("home") { inclusive = true }
+            // 🔥 ERROR MESSAGE DISPLAY
+            if (uiState.shouldShowError) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.Red.copy(alpha = 0.1f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Error,
+                            contentDescription = "Error",
+                            tint = Color.Red,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = uiState.errorMessage ?: "Unknown error",
+                            color = Color.Red,
+                            fontSize = 14.sp
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                        IconButton(onClick = { viewModel.clearError() }) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Close",
+                                tint = Color.Red,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
                     }
-                },
+                }
+            }
+
+            // 🔥 LOGOUT BUTTON WITH VIEWMODEL
+            Button(
+                onClick = { showLogoutDialog = true },
+                enabled = !uiState.shouldShowLoading,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Black)
             ) {
-                Text("Logout", color = Color.White, fontSize = 18.sp)
+                if (uiState.shouldShowLoading) {
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                } else {
+                    Text("Logout", color = Color.White, fontSize = 18.sp)
+                }
             }
         }
     }
+
+    // 🔥 LOGOUT CONFIRMATION DIALOG
+    if (showLogoutDialog) {
+        AlertDialog(
+            onDismissRequest = { showLogoutDialog = false },
+            title = { 
+                Text(
+                    "Logout Confirmation",
+                    fontWeight = FontWeight.Bold
+                ) 
+            },
+            text = { 
+                Text("Are you sure you want to logout? You will need to login again to access your chats.") 
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showLogoutDialog = false
+                        viewModel.logout()
+                    }
+                ) {
+                    Text("Logout", color = Color.Red)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLogoutDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 }
+
+@Preview
+@Composable
+fun SettingsScreenPreview() {
+    SettingsScreen(NavController(LocalContext.current))
+}
+

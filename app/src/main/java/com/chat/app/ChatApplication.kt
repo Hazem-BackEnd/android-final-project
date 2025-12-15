@@ -5,3 +5,5 @@ import dagger.hilt.android.HiltAndroidApp
 
 @HiltAndroidApp
 class ChatApplication : Application()
+
+//class AppContainer(){ ... } انا كنت هكتب كده
