@@ -6,7 +6,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.chat.app.ui.chatdetails.ChatDetailScreen
 import com.chat.app.ui.chatdetails.Message
-import com.chat.app.ui.contacts.ContactsScreen
 import com.chat.app.ui.home.HomeScreen
 import com.chat.app.ui.login.LoginScreen
 import com.chat.app.ui.profile.ProfileScreen
@@ -32,20 +31,17 @@ fun AppNavigation() {
         composable(Routes.HOME) {
             HomeScreen(navController)
         }
-        composable("chat_detail/{name}") { backStackEntry ->
-            val name = backStackEntry.arguments?.getString("name") ?: ""
-            val messages = backStackEntry.arguments?.getParcelableArrayList<Message>("messages") ?: arrayListOf()
+        composable("chat_detail/{chatId}/{otherUserName}") { backStackEntry ->
+            val chatId = backStackEntry.arguments?.getString("chatId") ?: ""
+            val otherUserName = backStackEntry.arguments?.getString("otherUserName") ?: ""
 
-            ChatDetailScreen(name, messages, navController)
+            ChatDetailScreen(chatId, otherUserName, navController)
         }
 
         composable(Routes.PROFILE) {
             ProfileScreen(navController)
         }
 
-        composable(Routes.CONTACTS) {
-            ContactsScreen(navController)
-        }
 
         composable(Routes.SETTINGS) {
             SettingsScreen(navController)

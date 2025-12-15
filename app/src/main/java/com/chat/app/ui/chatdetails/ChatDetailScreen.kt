@@ -4,11 +4,6 @@ import android.os.Parcelable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -16,22 +11,24 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.chat.app.R
-import kotlinx.coroutines.delay
+import com.chat.app.data.local.entities.MessageEntity
+import com.chat.app.data.repository.ChatRepository
+import com.chat.app.data.repository.MessageRepository
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.*
 import kotlinx.parcelize.Parcelize
 
 @Parcelize
@@ -44,15 +41,49 @@ data class Message(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatDetailScreen(
-    name: String,
-    messages: List<Message>,
+    chatId: String,
+    otherUserName: String,
     navController: NavController
 ) {
-    val messagesState = remember { mutableStateListOf<Message>().apply { addAll(messages) } }
-    var inputText by remember { mutableStateOf("") }
+    // 🔥 SETUP VIEWMODEL WITH FACTORY
+    val context = LocalContext.current
+    val chatRepository = ChatRepository(context)
+    val messageRepository = MessageRepository(context)
+    val viewModel: ChatDetailsViewModel = viewModel(
+        factory = ChatDetailsViewModelFactory(
+            chatRepository = chatRepository,
+            messageRepository = messageRepository,
+            chatId = chatId,
+            otherUserName = otherUserName
+        )
+    )
+    
+    // 🔥 COLLECT UI STATE FROM VIEWMODEL
+    val uiState by viewModel.uiState.collectAsState()
+    
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
-    val timeFormatter = SimpleDateFormat("hh:mm a", Locale.getDefault())
+    
+    // 🔥 AUTO-SCROLL TO BOTTOM WHEN NEW MESSAGES ARRIVE
+    LaunchedEffect(uiState.messages.size) {
+        if (uiState.messages.isNotEmpty()) {
+            // Scroll to the last message (bottom of the list)
+            listState.animateScrollToItem(uiState.messages.size - 1)
+        }
+    }
+    
+    // 🔥 SCROLL TO BOTTOM WHEN SCREEN FIRST LOADS
+    LaunchedEffect(uiState.shouldShowMessages) {
+        if (uiState.shouldShowMessages && uiState.messages.isNotEmpty()) {
+            // Initial scroll to bottom when messages first load
+            listState.scrollToItem(uiState.messages.size - 1)
+        }
+    }
+
+    // Add sample messages for testing (remove in production)
+    LaunchedEffect(Unit) {
+        viewModel.addSampleMessages()
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
 
@@ -68,12 +99,28 @@ fun ChatDetailScreen(
             containerColor = Color.Transparent,
             topBar = {
                 TopAppBar(
-                    title = { Text(name, fontSize = 20.sp, color = Color.White) },
+                    title = { 
+                        Text(
+                            text = uiState.otherUserName, 
+                            fontSize = 20.sp, 
+                            color = Color.White
+                        ) 
+                    },
                     navigationIcon = {
                         IconButton(onClick = { navController.popBackStack() }) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Back",
+                                tint = Color.White
+                            )
+                        }
+                    },
+                    actions = {
+                        // Add refresh button for testing
+                        IconButton(onClick = { viewModel.addSampleMessages() }) {
+                            Icon(
+                                Icons.Default.Refresh,
+                                contentDescription = "Add sample messages",
                                 tint = Color.White
                             )
                         }
@@ -90,8 +137,8 @@ fun ChatDetailScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     TextField(
-                        value = inputText,
-                        onValueChange = { inputText = it },
+                        value = uiState.inputText,
+                        onValueChange = { viewModel.updateInputText(it) },
                         placeholder = {
                             Text(
                                 "Message...",
@@ -103,33 +150,8 @@ fun ChatDetailScreen(
                     )
                     IconButton(
                         onClick = {
-                            if (inputText.isNotEmpty()) {
-                                val currentTime = timeFormatter.format(Date())
-                                messagesState.add(
-                                    Message(
-                                        inputText,
-                                        isUser = true,
-                                        time = currentTime
-                                    )
-                                )
-                                val sentText = inputText
-                                inputText = ""
-                                scope.launch {
-                                    listState.animateScrollToItem(messagesState.size - 1)
-                                }
-
-                                // Optional: Simulate auto-reply
-                                scope.launch {
-                                    delay(500)
-                                    messagesState.add(
-                                        Message(
-                                            text = "Auto-reply to: $sentText",
-                                            isUser = false,
-                                            time = timeFormatter.format(Date())
-                                        )
-                                    )
-                                    listState.animateScrollToItem(messagesState.size - 1)
-                                }
+                            if (uiState.inputText.isNotEmpty()) {
+                                viewModel.sendMessage(uiState.inputText)
                             }
                         }
                     ) {
@@ -142,22 +164,184 @@ fun ChatDetailScreen(
                 }
             }
         ) { innerPadding ->
-            LazyColumn(
+            
+            // 🔥 USE VIEWMODEL UI STATE FOR DIFFERENT SCREENS
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
-                    .padding(10.dp),
-                state = listState
             ) {
-                items(messagesState) { msg ->
-                    MessageBubble(msg)
-                    Spacer(modifier = Modifier.height(8.dp))
+                when {
+                    // Loading state
+                    uiState.shouldShowLoading -> {
+                        Column(
+                            modifier = Modifier.align(Alignment.Center),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            CircularProgressIndicator(color = Color.White)
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "Loading messages...",
+                                color = Color.White
+                            )
+                        }
+                    }
+                    
+                    // Error state
+                    uiState.errorMessage != null -> {
+                        Column(
+                            modifier = Modifier.align(Alignment.Center),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Error,
+                                contentDescription = "Error",
+                                modifier = Modifier.size(64.dp),
+                                tint = Color.Red
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "Error loading messages",
+                                fontSize = 18.sp,
+                                color = Color.White
+                            )
+                            Text(
+                                text = uiState.errorMessage ?: "Unknown error",
+                                fontSize = 14.sp,
+                                color = Color.White.copy(alpha = 0.7f)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Button(onClick = { viewModel.clearError() }) {
+                                Text("Retry")
+                            }
+                        }
+                    }
+                    
+                    // Empty state
+                    uiState.shouldShowEmpty -> {
+                        Column(
+                            modifier = Modifier.align(Alignment.Center),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Chat,
+                                contentDescription = "No messages",
+                                modifier = Modifier.size(64.dp),
+                                tint = Color.White.copy(alpha = 0.7f)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "No messages yet",
+                                fontSize = 18.sp,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "Start the conversation!",
+                                fontSize = 14.sp,
+                                color = Color.White.copy(alpha = 0.7f)
+                            )
+                        }
+                    }
+                    
+                    // Show messages
+                    uiState.shouldShowMessages -> {
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            LazyColumn(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(10.dp),
+                                state = listState,
+                                reverseLayout = false // Keep normal layout (top to bottom)
+                            ) {
+                                items(uiState.messages) { messageEntity ->
+                                    MessageBubbleFromEntity(
+                                        message = messageEntity,
+                                        formatTime = { viewModel.formatMessageTime(it) }
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                }
+                            }
+                            
+                            // 🔥 SCROLL TO BOTTOM BUTTON (shows when not at bottom)
+                            val isAtBottom by remember {
+                                derivedStateOf {
+                                    val lastVisibleIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+                                    lastVisibleIndex >= uiState.messages.size - 2 // Show button when not near bottom
+                                }
+                            }
+                            
+                            if (!isAtBottom && uiState.messages.isNotEmpty()) {
+                                FloatingActionButton(
+                                    onClick = {
+                                        scope.launch {
+                                            listState.animateScrollToItem(uiState.messages.size - 1)
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .align(Alignment.BottomEnd)
+                                        .padding(16.dp),
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = Color.White
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.KeyboardArrowDown,
+                                        contentDescription = "Scroll to bottom"
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
     }
 }
 
+/**
+ * 🔥 NEW: MessageBubble that works with MessageEntity from database
+ */
+@Composable
+fun MessageBubbleFromEntity(
+    message: MessageEntity,
+    formatTime: (Long) -> String
+) {
+    val bubbleColor = if (message.isFromMe) Color.Black else Color(0xFFE0E0E0)
+    val textColor = if (message.isFromMe) Color.White else Color.Black
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = if (message.isFromMe) Arrangement.End else Arrangement.Start
+    ) {
+        Box(
+            modifier = Modifier
+                .background(
+                    bubbleColor,
+                    RoundedCornerShape(16.dp)
+                )
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+                .widthIn(max = 250.dp)
+        ) {
+            Column {
+                Text(
+                    text = message.content, 
+                    color = textColor, 
+                    fontSize = 16.sp
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = formatTime(message.timestamp),
+                        color = textColor.copy(alpha = 0.7f),
+                        fontSize = 12.sp,
+                        modifier = Modifier.align(Alignment.BottomEnd)
+                    )
+                }
+            }
+        }
+    }
+}
+
+// Keep old MessageBubble for compatibility
 @Composable
 fun MessageBubble(message: Message) {
     val bubbleColor = if (message.isUser) Color.Black else Color(0xFFE0E0E0)

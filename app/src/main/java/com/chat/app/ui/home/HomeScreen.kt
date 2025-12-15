@@ -279,8 +279,8 @@ fun HomeScreen(
                                     chatEntity = chatEntity,
                                     onChatClick = { chatId ->
                                         viewModel.onChatClicked(chatId)
-                                        // TODO: Navigate to chat details
-                                        println("🔥 Navigating to chat: $chatId")
+                                        // Navigate to chat details with chatId and otherUserName
+                                        navController?.navigate("chat_detail/${chatEntity.chatId}/${chatEntity.otherUserId}")
                                     }
                                 )
                             }
