@@ -25,6 +25,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.chat.app.R
+import com.chat.app.data.local.AppDatabase
+import com.chat.app.data.local.dao.ChatDao
 import com.chat.app.data.local.entities.MessageEntity
 import com.chat.app.data.repository.ChatRepository
 import com.chat.app.data.repository.MessageRepository
@@ -47,7 +49,8 @@ fun ChatDetailScreen(
 ) {
     // 🔥 SETUP VIEWMODEL WITH FACTORY
     val context = LocalContext.current
-    val chatRepository = ChatRepository(context)
+    val database = AppDatabase.getDatabase(context)
+    val chatRepository = ChatRepository(database.chatDao())
     val messageRepository = MessageRepository(context)
     val viewModel: ChatDetailsViewModel = viewModel(
         factory = ChatDetailsViewModelFactory(
