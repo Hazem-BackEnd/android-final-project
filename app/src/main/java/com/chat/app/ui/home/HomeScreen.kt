@@ -40,11 +40,6 @@ fun HomeScreen(
     // 🔥 COLLECT UI STATE FROM VIEWMODEL
     val uiState by viewModel.uiState.collectAsState()
     
-    // 🔥 Add sample data for testing (remove in production)
-    LaunchedEffect(Unit) { 
-        viewModel.addSampleData() // This adds chats for current user
-    }
-    
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 

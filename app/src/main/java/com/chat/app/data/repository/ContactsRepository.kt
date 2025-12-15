@@ -3,13 +3,9 @@ package com.chat.app.data.repository
 import android.content.Context
 import android.provider.ContactsContract
 import com.chat.app.data.local.entities.UserEntity
-import dagger.hilt.android.qualifiers.ApplicationContext
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class ContactsRepository @Inject constructor(
-    @ApplicationContext private val context: Context
+class ContactsRepository(
+    private val context: Context
 ) {
 
     fun getDeviceContacts(): List<UserEntity> {
@@ -28,20 +24,23 @@ class ContactsRepository @Inject constructor(
             val numberIndex = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
 
             while (it.moveToNext()) {
-                val name = it.getString(nameIndex)
-                var phone = it.getString(numberIndex)
+                val name = it.getString(nameIndex) ?: "Unknown"
+                val phone = it.getString(numberIndex) ?: ""
                 
-                phone = phone.replace("\\s".toRegex(), "").replace("-", "")
-
-
-                contacts.add(
-                    UserEntity(
-                        uid = phone,
-                        fullName = name,
-                        phoneNumber = phone
-
+                // Remove all non-digit characters for URL-safe ID
+                val phoneId = phone.replace("[^0-9]".toRegex(), "")
+                // Keep formatted phone for display (remove only spaces and dashes)
+                val displayPhone = phone.replace("\\s".toRegex(), "").replace("-", "")
+                
+                if (phoneId.isNotEmpty()) {
+                    contacts.add(
+                        UserEntity(
+                            uid = phoneId,  // Digits only - URL safe
+                            fullName = name,
+                            phoneNumber = displayPhone  // For display
+                        )
                     )
-                )
+                }
             }
         }
         return contacts.distinctBy { it.uid } // remove duplicates

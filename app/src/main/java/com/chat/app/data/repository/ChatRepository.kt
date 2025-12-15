@@ -3,11 +3,8 @@ package com.chat.app.data.repository
 import com.chat.app.data.local.dao.ChatDao
 import com.chat.app.data.local.entities.ChatEntity
 import kotlinx.coroutines.flow.Flow
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class ChatRepository @Inject constructor(
+class ChatRepository(
     private val chatDao: ChatDao
 ) {
 
