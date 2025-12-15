@@ -2,9 +2,12 @@ package com.chat.app.ui.chatdetails
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chat.app.data.local.entities.ChatEntity
 import com.chat.app.data.local.entities.MessageEntity
+import com.chat.app.data.local.entities.UserEntity
 import com.chat.app.data.repository.ChatRepository
 import com.chat.app.data.repository.MessageRepository
+import com.chat.app.data.repository.UserRepository
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -30,8 +33,10 @@ data class ChatDetailsUiState(
 class ChatDetailsViewModel(
     private val chatRepository: ChatRepository,
     private val messageRepository: MessageRepository,
+    private val userRepository: UserRepository,
     private val chatId: String,
     private val otherUserName: String,
+    private val otherUserId: String,
     private val currentUserId: String = "current_user"
 ): ViewModel() {
     
@@ -48,8 +53,44 @@ class ChatDetailsViewModel(
     private val timeFormatter = SimpleDateFormat("hh:mm a", Locale.getDefault())
     
     init {
+        // 🔥 Step 1: Save the other user locally and create/update the chat
+        initializeChat()
+        // 🔥 Step 2: Load messages from local DB
         loadMessages()
+        // 🔥 Step 3: Start syncing with Firebase (CRITICAL)
         startMessageSyncing()
+    }
+    
+    /**
+     * 🔥 Initialize chat: Save user locally and create/update chat entity
+     * This follows the "Starting a Chat" logic from the documentation
+     */
+    private fun initializeChat() {
+        viewModelScope.launch {
+            try {
+                // Step A.1: Save the other user locally
+                val otherUser = UserEntity(
+                    uid = otherUserId,
+                    fullName = otherUserName,
+                    phoneNumber = otherUserId  // Using uid as phone number
+                )
+                userRepository.saveUserLocally(otherUser)
+                println("✅ Saved user locally: $otherUserName ($otherUserId)")
+                
+                // Step A.2: Create or update the chat
+                val chat = ChatEntity(
+                    chatId = chatId,
+                    otherUserId = otherUserId,
+                    lastMessage = null,
+                    timestamp = System.currentTimeMillis()
+                )
+                chatRepository.createOrUpdateChat(chat)
+                println("✅ Created/updated chat: $chatId")
+                
+            } catch (e: Exception) {
+                println("❌ Error initializing chat: ${e.message}")
+            }
+        }
     }
     
     /**

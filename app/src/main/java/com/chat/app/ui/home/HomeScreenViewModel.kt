@@ -3,6 +3,7 @@ package com.chat.app.ui.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chat.app.data.local.entities.ChatEntity
+import com.chat.app.data.remote.firebase.FirebaseAuthManager
 import com.chat.app.data.repository.AuthRepository
 import com.chat.app.data.repository.ChatRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -29,7 +30,9 @@ class HomeScreenViewModel @Inject constructor(
     private val authRepository: AuthRepository
 ): ViewModel(){
     
-    private val currentUserId: String = "current_user" // TODO: Get from authentication
+    // 🔥 Get real user ID from Firebase Auth
+    private val authManager = FirebaseAuthManager()
+    private val currentUserId: String = authManager.currentUserId ?: "current_user"
     
     // Private mutable state
     private val _uiState = MutableStateFlow(HomeUiState())

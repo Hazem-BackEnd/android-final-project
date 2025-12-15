@@ -28,8 +28,10 @@ import com.chat.app.R
 import com.chat.app.data.local.AppDatabase
 import com.chat.app.data.local.dao.ChatDao
 import com.chat.app.data.local.entities.MessageEntity
+import com.chat.app.data.remote.firebase.FirebaseAuthManager
 import com.chat.app.data.repository.ChatRepository
 import com.chat.app.data.repository.MessageRepository
+import com.chat.app.data.repository.UserRepository
 import kotlinx.coroutines.launch
 import kotlinx.parcelize.Parcelize
 
@@ -52,12 +54,24 @@ fun ChatDetailScreen(
     val database = AppDatabase.getDatabase(context)
     val chatRepository = ChatRepository(database.chatDao())
     val messageRepository = MessageRepository(context)
+    val userRepository = UserRepository(database.userDao())
+    
+    // 🔥 Get current user ID from Firebase Auth
+    val authManager = FirebaseAuthManager()
+    val currentUserId = authManager.currentUserId ?: "current_user"
+    
+    // 🔥 Extract otherUserId from chatId (format: "userId1_userId2")
+    val otherUserId = chatId.split("_").firstOrNull { it != currentUserId } ?: chatId
+    
     val viewModel: ChatDetailsViewModel = viewModel(
         factory = ChatDetailsViewModelFactory(
             chatRepository = chatRepository,
             messageRepository = messageRepository,
+            userRepository = userRepository,
             chatId = chatId,
-            otherUserName = otherUserName
+            otherUserName = otherUserName,
+            otherUserId = otherUserId,
+            currentUserId = currentUserId
         )
     )
     
@@ -81,11 +95,6 @@ fun ChatDetailScreen(
             // Initial scroll to bottom when messages first load
             listState.scrollToItem(uiState.messages.size - 1)
         }
-    }
-
-    // Add sample messages for testing (remove in production)
-    LaunchedEffect(Unit) {
-        viewModel.addSampleMessages()
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -118,16 +127,7 @@ fun ChatDetailScreen(
                             )
                         }
                     },
-                    actions = {
-                        // Add refresh button for testing
-                        IconButton(onClick = { viewModel.addSampleMessages() }) {
-                            Icon(
-                                Icons.Default.Refresh,
-                                contentDescription = "Add sample messages",
-                                tint = Color.White
-                            )
-                        }
-                    },
+                    actions = { },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
                 )
             },

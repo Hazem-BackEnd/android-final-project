@@ -4,8 +4,9 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.chat.app.data.remote.firebase.FirebaseAuthManager
 import com.chat.app.ui.chatdetails.ChatDetailScreen
-import com.chat.app.ui.chatdetails.Message
+import com.chat.app.ui.contacts.ContactsScreen
 import com.chat.app.ui.home.HomeScreen
 import com.chat.app.ui.login.LoginScreen
 import com.chat.app.ui.profile.ProfileScreen
@@ -15,10 +16,14 @@ import com.chat.app.ui.settings.SettingsScreen
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
+    
+    // 🔥 Check if user is already logged in (auto-login)
+    val authManager = FirebaseAuthManager()
+    val startDestination = if (authManager.isUserLoggedIn()) Routes.HOME else Routes.LOGIN
 
     NavHost(
         navController = navController,
-        startDestination = Routes.LOGIN
+        startDestination = startDestination
     ) {
         composable(Routes.LOGIN) {
             LoginScreen(navController)
@@ -42,6 +47,9 @@ fun AppNavigation() {
             ProfileScreen(navController)
         }
 
+        composable(Routes.CONTACTS) {
+            ContactsScreen(navController)
+        }
 
         composable(Routes.SETTINGS) {
             SettingsScreen(navController)
