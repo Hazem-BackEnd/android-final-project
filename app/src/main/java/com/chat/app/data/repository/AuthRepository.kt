@@ -22,15 +22,34 @@ class AuthRepository {
         }
     }
 
-    suspend fun register(fullName: String, phoneNumber: String, email: String, pass: String, profilePictureUrl:String?): Result<Boolean> {
+    suspend fun register(fullName: String, phoneNumber: String, email: String, pass: String, profilePictureUrl: String?): Result<Boolean> {
         return try {
+            val digits = phoneNumber.filter { it.isDigit() }
+
+            if (digits.length < 11) {
+                return Result.failure(Exception("Phone number is too short"))
+            }
+
+            val finalPhoneNumber = digits.takeLast(11)
+
+
+            val snapshot = firestore.collection("users")
+                .whereEqualTo("phone_number", finalPhoneNumber)
+                .get()
+                .await()
+
+            if (!snapshot.isEmpty) {
+                return Result.failure(Exception("Phone number already exists"))
+            }
+
+
             val user = authManager.register(email, pass)
-            
+
             user?.let {
                 val userMap = hashMapOf(
                     "uid" to it.uid,
                     "full_name" to fullName,
-                    "phone_number" to phoneNumber,
+                    "phone_number" to finalPhoneNumber,
                     "email" to email,
                     "profile_picture_url" to profilePictureUrl
                 )
@@ -41,7 +60,6 @@ class AuthRepository {
             Result.failure(e)
         }
     }
-    
     suspend fun getUserFromFirebase(uid: String): UserEntity? {
         return try {
             val document = firestore.collection("users").document(uid).get().await()
