@@ -1,21 +1,10 @@
 package com.chat.app.ui.profile
 
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -26,17 +15,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -45,25 +28,11 @@ fun ProfileScreen(
     navController: NavController,
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
-    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val isEditing by viewModel.isEditing.collectAsStateWithLifecycle()
 
-    // Load user data on first composition
+    // Load current user profile
     LaunchedEffect(Unit) {
-        // Try to get current user ID (you might want to get this from AuthRepository)
-        val currentUserId = "current_user" // TODO: Get from authentication
-        viewModel.loadUserProfile(currentUserId)
-        
-        // Also load from SharedPreferences as fallback
-        val savedUser = UserPrefs.loadUser(context)
-        viewModel.loadFromSharedPreferences(savedUser)
-    }
-
-    val pickImageLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        viewModel.updateProfileImage(uri)
+        viewModel.loadCurrentUserProfile()
     }
 
     Surface(
@@ -117,19 +86,6 @@ fun ProfileScreen(
                     else -> {
                         ProfileContent(
                             uiState = uiState,
-                            isEditing = isEditing,
-                            onUsernameChange = viewModel::updateUsername,
-                            onPhoneChange = viewModel::updatePhone,
-                            onEmailChange = viewModel::updateEmail,
-                            onImagePick = { pickImageLauncher.launch("image/*") },
-                            onToggleEdit = { 
-                                viewModel.toggleEditMode()
-                                // Save to SharedPreferences when saving
-                                if (!isEditing) {
-                                    val userData = viewModel.saveToSharedPreferences()
-                                    UserPrefs.saveUser(context, userData.username, userData.phone, userData.email, userData.profileUri)
-                                }
-                            },
                             modifier = Modifier.padding(16.dp)
                         )
                     }
@@ -160,12 +116,6 @@ fun ProfileScreen(
 @Composable
 fun ProfileContent(
     uiState: ProfileUiState,
-    isEditing: Boolean,
-    onUsernameChange: (String) -> Unit,
-    onPhoneChange: (String) -> Unit,
-    onEmailChange: (String) -> Unit,
-    onImagePick: () -> Unit,
-    onToggleEdit: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -178,10 +128,7 @@ fun ProfileContent(
             modifier = Modifier
                 .size(120.dp)
                 .clip(CircleShape)
-                .background(Color.Gray)
-                .clickable(enabled = isEditing) {
-                    onImagePick()
-                },
+                .background(Color.Gray),
             contentAlignment = Alignment.Center
         ) {
             val imageModel = uiState.profileImageUri ?: uiState.profileImageUrl
@@ -205,102 +152,50 @@ fun ProfileContent(
         Spacer(modifier = Modifier.height(24.dp))
 
         // Username
-        if (isEditing) {
-            OutlinedTextField(
-                value = uiState.username,
-                onValueChange = onUsernameChange,
-                label = { Text("Username") },
-                singleLine = true
-            )
-        } else {
-            Text(
-                text = uiState.username.ifEmpty { "No username" },
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold
-            )
-        }
+        Text(
+            text = uiState.username.ifEmpty { "No username" },
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold
+        )
 
         Spacer(modifier = Modifier.height(20.dp))
 
         // Phone
         ProfileRow(
-            label = "Phone: ",
-            value = uiState.phone,
-            isEditing = isEditing,
-            onValueChange = onPhoneChange
+            label = "Phone",
+            value = uiState.phone.ifEmpty { "No phone number" }
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Email
-        ProfileRow(
-            label = "Email: ",
-            value = uiState.email,
-            isEditing = isEditing,
-            onValueChange = onEmailChange
-        )
-
-        Spacer(modifier = Modifier.height(30.dp))
-
-        Button(
-            onClick = onToggleEdit,
-            enabled = !uiState.isSaving,
-            modifier = Modifier
-                .fillMaxWidth(0.5f)
-                .height(50.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color.Black,
-                contentColor = Color.White
-            )
-        ) {
-            if (uiState.isSaving) {
-                CircularProgressIndicator(
-                    color = Color.White,
-                    modifier = Modifier.size(20.dp)
-                )
-            } else {
-                Text(
-                    text = if (isEditing) "Save Changes" else "Edit Profile",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
+//        // Email
+//        ProfileRow(
+//            label = "Email",
+//            value = uiState.email.ifEmpty { "No email" }
+//        )
     }
 }
 
 @Composable
 fun ProfileRow(
     label: String,
-    value: String,
-    isEditing: Boolean,
-    onValueChange: (String) -> Unit
+    value: String
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        Text(label, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+        Text(
+            text = label,
+            fontWeight = FontWeight.Bold,
+            fontSize = 20.sp,
+            color = MaterialTheme.colorScheme.primary
+        )
 
         Spacer(modifier = Modifier.height(6.dp))
 
-
-        if (isEditing) {
-            OutlinedTextField(
-                value = value,
-                onValueChange = onValueChange,
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-        } else {
-            Text(
-                text = value,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color.DarkGray
-            )
-        }
+        Text(
+            text = value,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Medium,
+            color = Color.DarkGray
+        )
     }
 }
-
-
-/*
-
- */

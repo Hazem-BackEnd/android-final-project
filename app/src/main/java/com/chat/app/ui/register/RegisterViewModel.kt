@@ -4,8 +4,10 @@ import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chat.app.data.local.entities.UserEntity
 import com.chat.app.data.repository.AuthRepository
 import com.chat.app.data.repository.StorageRepository
+import com.chat.app.data.repository.UserRepository
 import com.chat.app.utils.ValidationResult
 import com.chat.app.utils.ValidationUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -17,7 +19,8 @@ import javax.inject.Inject
 @HiltViewModel
 class RegisterViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val storageRepository: StorageRepository
+    private val storageRepository: StorageRepository,
+    private val userRepository: UserRepository
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<SignUpState>(SignUpState.Nothing)
@@ -78,6 +81,24 @@ class RegisterViewModel @Inject constructor(
                 val result = authRepository.register(fullName, phoneNumber, email, password, profilePictureUrl)
                 
                 if (result.isSuccess) {
+                    // Fetch and save user data locally after successful registration
+                    val currentUserId = authRepository.getCurrentUserId()
+                    if (currentUserId != null) {
+                        try {
+                            // Try to fetch user data from Firebase first
+                            val firebaseUser = authRepository.getUserFromFirebase(currentUserId)
+                            val userEntity = firebaseUser ?: UserEntity(
+                                uid = currentUserId,
+                                fullName = fullName,
+                                phoneNumber = phoneNumber,
+                                profilePictureUrl = profilePictureUrl
+                            )
+                            userRepository.saveUserLocally(userEntity)
+                        } catch (e: Exception) {
+                            // Don't fail registration if local save fails
+                            println("Failed to save user locally: ${e.message}")
+                        }
+                    }
                     _state.value = SignUpState.Success
                 } else {
                     _state.value = SignUpState.Error("Registration failed. Please try again.")
