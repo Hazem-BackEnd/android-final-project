@@ -9,6 +9,7 @@ import io.mockk.mockk
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import androidx.compose.ui.test.hasText
 //Run all UI tests: ./gradlew connectedAndroidTest
 //Run specific test class: ./gradlew connectedAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.chat.app.ui.login.LoginScreenUITest
 
@@ -57,7 +58,7 @@ class LoginScreenUITest {
         composeTestRule.onNodeWithText("Password").performTextInput(testPassword)
 
         // Then - Verify text was entered
-        composeTestRule.onNodeWithText("Email").assertTextContains(testEmail)
+        composeTestRule.onNode(hasText(testEmail)).assertExists()
         composeTestRule.onNodeWithText("Password").assertExists()
         // Note: Password field content is hidden, so we can't directly verify the text
     }

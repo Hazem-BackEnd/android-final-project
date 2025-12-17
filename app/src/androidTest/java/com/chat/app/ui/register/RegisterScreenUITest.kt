@@ -9,6 +9,7 @@ import io.mockk.mockk
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import androidx.compose.ui.test.hasText
 
 @RunWith(AndroidJUnit4::class)
 class RegisterScreenUITest {
@@ -133,7 +134,7 @@ class RegisterScreenUITest {
     }
 
     @Test
-    fun registerScreen_emptyFields_createAccountButtonStillClickable() {
+    fun registerScreen_emptyFields_createAccountButtonDisabled() {
         // Given
         composeTestRule.setContent {
             ChatappTheme {
@@ -141,10 +142,8 @@ class RegisterScreenUITest {
             }
         }
 
-        // When - Click create account button without entering credentials
-        composeTestRule.onNodeWithText("Create Account").performClick()
-
-        // Then - Button should still be clickable (validation happens in ViewModel)
+        // Then - Button should be disabled when fields are empty (validation is built-in)
+        composeTestRule.onNodeWithText("Create Account").assertIsNotEnabled()
         composeTestRule.onNodeWithText("Create Account").assertIsDisplayed()
     }
 
@@ -223,9 +222,9 @@ class RegisterScreenUITest {
         composeTestRule.onNodeWithText("Password").performTextInput(testPassword)
 
         // Then - Verify all data was entered correctly
-        composeTestRule.onNodeWithText("Username").assertTextContains(testUsername)
-        composeTestRule.onNodeWithText("Phone").assertTextContains(testPhone)
-        composeTestRule.onNodeWithText("Email").assertTextContains(testEmail)
+        composeTestRule.onNode(hasText(testUsername)).assertExists()
+        composeTestRule.onNode(hasText(testPhone)).assertExists()
+        composeTestRule.onNode(hasText(testEmail)).assertExists()
         composeTestRule.onNodeWithText("Password").assertExists()
 
         // When - Click create account

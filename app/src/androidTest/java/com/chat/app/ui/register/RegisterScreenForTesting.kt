@@ -3,7 +3,6 @@ package com.chat.app.ui.register
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -11,6 +10,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -19,7 +19,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -27,7 +26,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import com.chat.app.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -131,10 +129,12 @@ fun RegisterScreenForTesting(navController: NavController) {
                                 contentScale = ContentScale.Crop
                             )
                         } else {
-                            Image(
-                                painter = painterResource(id = R.drawable.icon),
+                            // Use Icon instead of painterResource for testing
+                            Icon(
+                                imageVector = Icons.Default.Person,
                                 contentDescription = "Default Profile Icon",
-                                modifier = Modifier.size(210.dp)
+                                modifier = Modifier.size(100.dp),
+                                tint = Color.Gray
                             )
                         }
                     }

@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -20,8 +21,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
 import androidx.navigation.NavController
 import com.chat.app.data.local.entities.ChatEntity
 import com.chat.app.navigation.Routes
@@ -47,69 +51,29 @@ fun HomeScreen(
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            ModalDrawerSheet(Modifier.width(250.dp)) {
-
-                Text(
-                    text = "Menu",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(16.dp)
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier.padding(vertical = 10.dp)
-                ) {
-                    DrawerItem(
-                        icon = Icons.Default.Person, 
-                        text = "My Profile"
-                    ) { 
-                        navController?.navigate(Routes.PROFILE)
-                        scope.launch { drawerState.close() }
+            AppDrawer(
+                userName = uiState.currentUser.fullName,
+                profilePictureUrl = uiState.currentUser.profilePictureUrl,
+                onProfileClick = {
+                    navController?.navigate(Routes.PROFILE)
+                    scope.launch { drawerState.close() }
+                },
+                onContactsClick = {
+                    navController?.navigate(Routes.CONTACTS)
+                    scope.launch { drawerState.close() }
+                },
+                onSettingsClick = {
+                    navController?.navigate(Routes.SETTINGS)
+                    scope.launch { drawerState.close() }
+                },
+                onLogoutClick = {
+                    viewModel.logout()
+                    navController?.navigate(Routes.LOGIN) {
+                        popUpTo(Routes.HOME) { inclusive = true }
                     }
-                    HorizontalDivider(
-                        color = Color.LightGray,
-                        thickness = 1.dp,
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                    )
-                    DrawerItem(
-                        icon = Icons.Default.Contacts, 
-                        text = "Contacts"
-                    ) { 
-                        navController?.navigate(Routes.CONTACTS)
-                        scope.launch { drawerState.close() }
-                    }
-                    HorizontalDivider(
-                        color = Color.LightGray,
-                        thickness = 1.dp,
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                    )
-                    DrawerItem(
-                        icon = Icons.Default.Settings, 
-                        text = "Settings"
-                    ) { 
-                        navController?.navigate(Routes.SETTINGS)
-                        scope.launch { drawerState.close() }
-                    }
-                    HorizontalDivider(
-                        color = Color.LightGray,
-                        thickness = 1.dp,
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                    )
-                    DrawerItem(
-                        icon = Icons.Default.PowerSettingsNew, 
-                        text = "Logout"
-                    ) { 
-                        // Call logout from ViewModel and then navigate
-                        viewModel.logout()
-                        navController?.navigate(Routes.LOGIN) {
-                            popUpTo(Routes.HOME) { inclusive = true }
-                        }
-                        scope.launch { drawerState.close() }
-                    }
+                    scope.launch { drawerState.close() }
                 }
-            }
+            )
         }
     ) {
         Scaffold(
@@ -318,6 +282,127 @@ fun HomeScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun AppDrawer(
+    userName: String = "",
+    profilePictureUrl: String? = null,
+    onProfileClick: () -> Unit,
+    onContactsClick: () -> Unit,
+    onSettingsClick: () -> Unit,
+    onLogoutClick: () -> Unit
+) {
+    ModalDrawerSheet(
+        modifier = Modifier.width(280.dp)
+    ) {
+        // Header with proper status bar padding
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.primaryContainer)
+                .statusBarsPadding()
+                .padding(24.dp)
+        ) {
+            Column {
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.primary,
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (!profilePictureUrl.isNullOrEmpty()) {
+                        AsyncImage(
+                            model = profilePictureUrl,
+                            contentDescription = "Profile Picture",
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        // Show initials or default icon
+                        val initials = userName.split(" ")
+                            .take(2)
+                            .mapNotNull { it.firstOrNull()?.uppercase() }
+                            .joinToString("")
+                        
+                        if (initials.isNotEmpty()) {
+                            Text(
+                                text = initials,
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = "Profile",
+                                modifier = Modifier.size(36.dp),
+                                tint = MaterialTheme.colorScheme.onPrimary
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = userName.ifEmpty { "Chat App" },
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+                Text(
+                    text = if (userName.isNotEmpty()) "Welcome back!" else "Welcome!",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Menu items
+        NavigationDrawerItem(
+            icon = { Icon(Icons.Default.Person, contentDescription = "Profile") },
+            label = { Text("My Profile") },
+            selected = false,
+            onClick = onProfileClick,
+            modifier = Modifier.padding(horizontal = 12.dp)
+        )
+        
+        NavigationDrawerItem(
+            icon = { Icon(Icons.Default.Contacts, contentDescription = "Contacts") },
+            label = { Text("Contacts") },
+            selected = false,
+            onClick = onContactsClick,
+            modifier = Modifier.padding(horizontal = 12.dp)
+        )
+        
+        NavigationDrawerItem(
+            icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
+            label = { Text("Settings") },
+            selected = false,
+            onClick = onSettingsClick,
+            modifier = Modifier.padding(horizontal = 12.dp)
+        )
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+        
+        NavigationDrawerItem(
+            icon = { Icon(Icons.Default.PowerSettingsNew, contentDescription = "Logout") },
+            label = { Text("Logout") },
+            selected = false,
+            onClick = onLogoutClick,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+        )
+        
+        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 

@@ -9,6 +9,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
+ * Current user info for display
+ */
+data class SettingsUserInfo(
+    val uid: String = "",
+    val fullName: String = "",
+    val profilePictureUrl: String? = null
+)
+
+/**
  * UI State for SettingsScreen
  */
 data class SettingsUiState(
@@ -20,7 +29,9 @@ data class SettingsUiState(
     // 🔥 Quote state
     val quote: String = "",
     val quoteAuthor: String = "",
-    val isLoadingQuote: Boolean = false
+    val isLoadingQuote: Boolean = false,
+    // 🔥 User profile state
+    val currentUser: SettingsUserInfo = SettingsUserInfo()
 ) {
     val shouldShowLoading: Boolean get() = isLoggingOut
     val shouldShowError: Boolean get() = errorMessage != null
@@ -38,6 +49,35 @@ class SettingsViewModel(
     
     // 🔥 Quotes API Service (Retrofit)
     private val quotesApiService = QuotesApiService()
+    
+    init {
+        loadCurrentUser()
+    }
+    
+    /**
+     * Load current user profile from Firebase
+     */
+    private fun loadCurrentUser() {
+        viewModelScope.launch {
+            try {
+                val userId = authRepository.getCurrentUserId()
+                if (userId != null) {
+                    val user = authRepository.getUserFromFirebase(userId)
+                    if (user != null) {
+                        _uiState.value = _uiState.value.copy(
+                            currentUser = SettingsUserInfo(
+                                uid = user.uid,
+                                fullName = user.fullName,
+                                profilePictureUrl = user.profilePictureUrl
+                            )
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                println("❌ Error loading user profile: ${e.message}")
+            }
+        }
+    }
 
     /**
      * Check if user is currently logged in

@@ -9,6 +9,7 @@ import io.mockk.mockk
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import androidx.compose.ui.test.hasText
 
 @RunWith(AndroidJUnit4::class)
 class RegisterScreenBasicUITest {
@@ -59,9 +60,9 @@ class RegisterScreenBasicUITest {
         composeTestRule.onNodeWithText("Password").performTextInput(testPassword)
 
         // Then - Verify text was entered
-        composeTestRule.onNodeWithText("Username").assertTextContains(testUsername)
-        composeTestRule.onNodeWithText("Phone").assertTextContains(testPhone)
-        composeTestRule.onNodeWithText("Email").assertTextContains(testEmail)
+        composeTestRule.onNode(hasText(testUsername)).assertExists()
+        composeTestRule.onNode(hasText(testPhone)).assertExists()
+        composeTestRule.onNode(hasText(testEmail)).assertExists()
         // Password field content is masked, so we just verify it exists
         composeTestRule.onNodeWithText("Password").assertExists()
     }
