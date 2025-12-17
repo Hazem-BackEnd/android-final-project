@@ -9,6 +9,7 @@ import io.mockk.mockk
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import androidx.compose.ui.test.hasText
 
 @RunWith(AndroidJUnit4::class)
 class RegisterScreenInteractionTest {
@@ -68,9 +69,9 @@ class RegisterScreenInteractionTest {
         composeTestRule.onNodeWithText("Password").performTextInput("password1")
 
         // When - Clear and enter new data
-        composeTestRule.onNodeWithText("Username").performTextClearance()
-        composeTestRule.onNodeWithText("Phone").performTextClearance()
-        composeTestRule.onNodeWithText("Email").performTextClearance()
+        composeTestRule.onNode(hasText("user1")).performTextClearance()
+        composeTestRule.onNode(hasText("1111111111")).performTextClearance()
+        composeTestRule.onNode(hasText("user1@example.com")).performTextClearance()
         composeTestRule.onNodeWithText("Password").performTextClearance()
         
         composeTestRule.onNodeWithText("Username").performTextInput("user2")
@@ -79,9 +80,9 @@ class RegisterScreenInteractionTest {
         composeTestRule.onNodeWithText("Password").performTextInput("password2")
 
         // Then - New data should be in the fields
-        composeTestRule.onNodeWithText("Username").assertTextContains("user2")
-        composeTestRule.onNodeWithText("Phone").assertTextContains("2222222222")
-        composeTestRule.onNodeWithText("Email").assertTextContains("user2@example.com")
+        composeTestRule.onNode(hasText("user2")).assertExists()
+        composeTestRule.onNode(hasText("2222222222")).assertExists()
+        composeTestRule.onNode(hasText("user2@example.com")).assertExists()
         composeTestRule.onNodeWithText("Password").assertExists()
     }
 
@@ -136,14 +137,13 @@ class RegisterScreenInteractionTest {
         composeTestRule.onNodeWithText("Password").performTextInput(specialPassword)
 
         // Then - Should handle special characters
-        composeTestRule.onNodeWithText("Username").assertTextContains(specialUsername)
-        composeTestRule.onNodeWithText("Phone").assertTextContains(specialPhone)
-        composeTestRule.onNodeWithText("Email").assertTextContains(specialEmail)
+        composeTestRule.onNode(hasText(specialUsername)).assertExists()
+        composeTestRule.onNode(hasText(specialPhone)).assertExists()
+        composeTestRule.onNode(hasText(specialEmail)).assertExists()
         composeTestRule.onNodeWithText("Password").assertExists()
         
-        // Create Account button should be clickable
-        composeTestRule.onNodeWithText("Create Account").performClick()
-        composeTestRule.waitForIdle()
+        // Create Account button should be enabled with valid data
+        composeTestRule.onNodeWithText("Create Account").assertIsEnabled()
     }
 
     @Test

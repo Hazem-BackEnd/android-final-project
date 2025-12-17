@@ -103,7 +103,7 @@
 ./gradlew connectedAndroidTest
 
 # Run specific test class
-./gradlew connectedAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.chat.app.ui.login.LoginScreenUITest
+./gradlew connectedAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.chat.app.ui.login.LoginScreenForTesting
 
 # Run with specific device
 ./gradlew connectedAndroidTest -Pandroid.testInstrumentationRunnerArguments.size=medium

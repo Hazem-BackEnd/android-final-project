@@ -1,23 +1,23 @@
 package com.chat.app.ui.login
 
-import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.background
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.clickable
 import androidx.navigation.NavController
-import com.chat.app.R
 
 @Composable
 fun LoginScreenForTesting(navController: NavController) {
@@ -38,13 +38,23 @@ fun LoginScreenForTesting(navController: NavController) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
-            Image(
-                painter = painterResource(id = R.drawable.icon),
-                contentDescription = "App Icon",
+            // Use Icon instead of Image with painterResource for testing
+            Box(
                 modifier = Modifier
-                    .size(300.dp)
-                    .padding(bottom = 28.dp)
-            )
+                    .size(120.dp)
+                    .background(Color.Black, CircleShape)
+                    .padding(bottom = 28.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Chat,
+                    contentDescription = "App Icon",
+                    modifier = Modifier.size(60.dp),
+                    tint = Color.White
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(28.dp))
 
             //  EMAIL FIELD
             OutlinedTextField(

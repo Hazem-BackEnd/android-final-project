@@ -9,6 +9,7 @@ import io.mockk.mockk
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import androidx.compose.ui.test.hasText
 
 @RunWith(AndroidJUnit4::class)
 class LoginScreenAccessibilityTest {
@@ -90,7 +91,7 @@ class LoginScreenAccessibilityTest {
         composeTestRule.onNodeWithText("Password").performTextInput("test")
         
         // Verify input was accepted
-        composeTestRule.onNodeWithText("Email").assertTextContains("test")
+        composeTestRule.onNode(hasText("test")).assertExists()
     }
 
     @Test

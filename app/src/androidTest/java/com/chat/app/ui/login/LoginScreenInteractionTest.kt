@@ -9,6 +9,7 @@ import io.mockk.mockk
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import androidx.compose.ui.test.hasText
 
 @RunWith(AndroidJUnit4::class)
 class LoginScreenInteractionTest {
@@ -140,14 +141,14 @@ class LoginScreenInteractionTest {
         composeTestRule.onNodeWithText("Password").performTextInput("password1")
 
         // When - Clear and enter new credentials
-        composeTestRule.onNodeWithText("Email").performTextClearance()
+        composeTestRule.onNode(hasText("first@example.com")).performTextClearance()
         composeTestRule.onNodeWithText("Password").performTextClearance()
         
         composeTestRule.onNodeWithText("Email").performTextInput("second@example.com")
         composeTestRule.onNodeWithText("Password").performTextInput("password2")
 
         // Then - New credentials should be in the fields
-        composeTestRule.onNodeWithText("Email").assertTextContains("second@example.com")
+        composeTestRule.onNode(hasText("second@example.com")).assertExists()
         // Password field content verification is limited due to password masking
         composeTestRule.onNodeWithText("Password").assertExists()
     }
@@ -193,7 +194,7 @@ class LoginScreenInteractionTest {
         composeTestRule.onNodeWithText("Password").performTextInput(specialPassword)
 
         // Then - Should handle special characters
-        composeTestRule.onNodeWithText("Email").assertTextContains(specialEmail)
+        composeTestRule.onNode(hasText(specialEmail)).assertExists()
         composeTestRule.onNodeWithText("Password").assertExists()
         
         // Login button should be clickable

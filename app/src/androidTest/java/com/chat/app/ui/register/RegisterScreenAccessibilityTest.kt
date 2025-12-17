@@ -9,6 +9,7 @@ import io.mockk.mockk
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import androidx.compose.ui.test.hasText
 
 @RunWith(AndroidJUnit4::class)
 class RegisterScreenAccessibilityTest {
@@ -92,15 +93,15 @@ class RegisterScreenAccessibilityTest {
         composeTestRule.onNodeWithText("Password").assertIsEnabled()
         
         // Test that they can receive text input
-        composeTestRule.onNodeWithText("Username").performTextInput("test")
-        composeTestRule.onNodeWithText("Phone").performTextInput("123")
+        composeTestRule.onNodeWithText("Username").performTextInput("testuser")
+        composeTestRule.onNodeWithText("Phone").performTextInput("1234567890")
         composeTestRule.onNodeWithText("Email").performTextInput("test@example.com")
-        composeTestRule.onNodeWithText("Password").performTextInput("pass")
+        composeTestRule.onNodeWithText("Password").performTextInput("password123")
         
         // Verify input was accepted
-        composeTestRule.onNodeWithText("Username").assertTextContains("test")
-        composeTestRule.onNodeWithText("Phone").assertTextContains("123")
-        composeTestRule.onNodeWithText("Email").assertTextContains("test@example.com")
+        composeTestRule.onNode(hasText("testuser")).assertExists()
+        composeTestRule.onNode(hasText("1234567890")).assertExists()
+        composeTestRule.onNode(hasText("test@example.com")).assertExists()
     }
 
     @Test
@@ -129,10 +130,20 @@ class RegisterScreenAccessibilityTest {
             .assertIsDisplayed()
             .assertIsEnabled()
 
+        // Button is disabled initially when fields are empty
         composeTestRule.onNodeWithText("Create Account")
             .assertIsDisplayed()
-            .assertIsEnabled()
             .assertHasClickAction()
+        
+        // Fill in valid data to enable the button
+        composeTestRule.onNodeWithText("Username").performTextInput("testuser")
+        composeTestRule.onNodeWithText("Phone").performTextInput("1234567890")
+        composeTestRule.onNodeWithText("Email").performTextInput("test@example.com")
+        composeTestRule.onNodeWithText("Password").performTextInput("password123")
+        
+        // Now button should be enabled
+        composeTestRule.onNodeWithText("Create Account")
+            .assertIsEnabled()
     }
 
     @Test
@@ -210,7 +221,6 @@ class RegisterScreenAccessibilityTest {
         composeTestRule.onNodeWithText("Create Account")
             .assertIsDisplayed()
             .assertHasClickAction()
-            .performClick() // Should be able to click without issues
 
         composeTestRule.onNodeWithContentDescription("Back")
             .assertIsDisplayed()

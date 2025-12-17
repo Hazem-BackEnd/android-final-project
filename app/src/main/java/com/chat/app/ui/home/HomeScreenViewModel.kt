@@ -11,12 +11,19 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+data class CurrentUserInfo(
+    val uid: String = "",
+    val fullName: String = "",
+    val profilePictureUrl: String? = null
+)
+
 data class HomeUiState(
     val chats: List<ChatEntity> = emptyList(),
     val isLoading: Boolean = false,
     val searchQuery: String = "",
     val isSearching: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val currentUser: CurrentUserInfo = CurrentUserInfo()
 ) {
     // Helper properties for UI logic
     val shouldShowLoading: Boolean get() = isLoading && chats.isEmpty()
@@ -45,6 +52,26 @@ class HomeScreenViewModel @Inject constructor(
     init {
         chatRepository.startSyncingAllChats(currentUserId)
         loadChats()
+        loadCurrentUser()
+    }
+    
+    private fun loadCurrentUser() {
+        viewModelScope.launch {
+            try {
+                val user = authRepository.getUserFromFirebase(currentUserId)
+                if (user != null) {
+                    _uiState.value = _uiState.value.copy(
+                        currentUser = CurrentUserInfo(
+                            uid = user.uid,
+                            fullName = user.fullName,
+                            profilePictureUrl = user.profilePictureUrl
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                println("❌ Error loading current user: ${e.message}")
+            }
+        }
     }
 
     private fun loadChats() {

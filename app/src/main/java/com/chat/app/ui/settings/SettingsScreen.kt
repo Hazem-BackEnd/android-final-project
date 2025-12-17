@@ -24,7 +24,6 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.chat.app.data.repository.AuthRepository
 import com.chat.app.navigation.Routes
-import com.chat.app.ui.profile.CurrentUser
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -80,37 +79,56 @@ fun SettingsScreen(navController: NavController) {
                     .clickable { navController.navigate("profile") }
                     .padding(vertical = 16.dp)
             ) {
-                if (CurrentUser.user.profileUri != null) {
-                    AsyncImage(
-                        model = CurrentUser.user.profileUri,
-                        contentDescription = "Profile Image",
-                        modifier = Modifier
-                            .size(60.dp)
-                            .clip(CircleShape)
-                            .background(Color.Gray),
-                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = "Profile Icon",
-                        modifier = Modifier
-                            .size(60.dp)
-                            .background(Color.Gray, shape = CircleShape),
-                        tint = Color.White
-                    )
+                Box(
+                    modifier = Modifier
+                        .size(60.dp)
+                        .background(Color.Gray, shape = CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (!uiState.currentUser.profilePictureUrl.isNullOrEmpty()) {
+                        AsyncImage(
+                            model = uiState.currentUser.profilePictureUrl,
+                            contentDescription = "Profile Image",
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                        )
+                    } else {
+                        // Show initials or default icon
+                        val initials = uiState.currentUser.fullName.split(" ")
+                            .take(2)
+                            .mapNotNull { it.firstOrNull()?.uppercase() }
+                            .joinToString("")
+                        
+                        if (initials.isNotEmpty()) {
+                            Text(
+                                text = initials,
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = "Profile Icon",
+                                modifier = Modifier.size(36.dp),
+                                tint = Color.White
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.width(16.dp))
 
                 Column {
                     Text(
-                        text = CurrentUser.user.username.ifEmpty { "User" },
+                        text = uiState.currentUser.fullName.ifEmpty { "User" },
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp
                     )
                     Text(
-                        text = "View and edit profile",
+                        text = "View profile",
                         fontSize = 14.sp,
                         color = Color.Gray
                     )
@@ -119,45 +137,6 @@ fun SettingsScreen(navController: NavController) {
 
             HorizontalDivider(thickness = 1.dp, color = Color.LightGray)
             Spacer(modifier = Modifier.height(16.dp))
-
-            // 🔥 DARK THEME - USING VIEWMODEL STATE
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text("Dark Theme", fontSize = 18.sp)
-                Switch(
-                    checked = uiState.isDarkTheme,
-                    onCheckedChange = { viewModel.toggleDarkTheme() }
-                )
-            }
-
-            Divider(
-                color = Color.LightGray,
-                thickness = 1.dp,
-                modifier = Modifier.padding(vertical = 8.dp)
-            )
-
-            // 🔥 NOTIFICATIONS - USING VIEWMODEL STATE
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text("Notifications", fontSize = 18.sp)
-                Switch(
-                    checked = uiState.notificationsEnabled,
-                    onCheckedChange = { viewModel.toggleNotifications() }
-                )
-            }
-
-            Divider(
-                color = Color.LightGray,
-                thickness = 1.dp,
-                modifier = Modifier.padding(vertical = 8.dp)
-            )
-
             // Privacy & Security
             Row(
                 modifier = Modifier

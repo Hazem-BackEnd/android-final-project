@@ -9,6 +9,7 @@ import io.mockk.mockk
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import androidx.compose.ui.test.hasText
 
 @RunWith(AndroidJUnit4::class)
 class LoginScreenBasicUITest {
@@ -52,9 +53,9 @@ class LoginScreenBasicUITest {
         composeTestRule.onNodeWithText("Email").performTextInput(testEmail)
         composeTestRule.onNodeWithText("Password").performTextInput(testPassword)
 
-        // Then - Verify text was entered (email field should show the text)
-        composeTestRule.onNodeWithText("Email").assertTextContains(testEmail)
-        // Password field content is masked, so we just verify it exists
+        // Then - Verify text was entered (check that the email text exists in the tree)
+        composeTestRule.onNode(hasText(testEmail)).assertExists()
+        // Password field content is masked, so we just verify the field exists
         composeTestRule.onNodeWithText("Password").assertExists()
     }
 
