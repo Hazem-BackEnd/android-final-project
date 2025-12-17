@@ -19,7 +19,6 @@ data class NetworkMessage(
 class FirebaseChatService {
     private val firestore = FirebaseFirestore.getInstance()
 
-    //we want both users have the same chat id format
     fun getChatId(user1: String, user2: String): String {
         return if (user1 < user2) "${user1}_${user2}" else "${user2}_${user1}"
     }
@@ -66,7 +65,7 @@ class FirebaseChatService {
                 doc.toObject(NetworkMessage::class.java)
             } ?: emptyList()
 
-            trySend(messages)//send the data to Flow
+            trySend(messages)
         }
 
         awaitClose { listener.remove() }
@@ -83,7 +82,7 @@ class FirebaseChatService {
 
             val chatDocs = snapshot?.documents?.map { doc ->
                 val data = doc.data ?: emptyMap()
-                data + ("chatId" to doc.id) // Include the document ID
+                data + ("chatId" to doc.id)
             } ?: emptyList()
 
             trySend(chatDocs)
@@ -91,7 +90,6 @@ class FirebaseChatService {
         awaitClose { listener.remove() }
     }
 
-    // Helper to get user name from Firestore if not in contacts
     suspend fun fetchUserName(userId: String): String {
         return try {
             val doc = firestore.collection("users").document(userId).get().await()
