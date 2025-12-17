@@ -16,9 +16,14 @@ class ContactsRepository(
         val contacts = mutableListOf<UserEntity>()
         val snapshot = firestore.collection("users").get().await()
 
-        val registeredPhoneNumbers = snapshot.documents
-            .mapNotNull { it.getString("phone_number") }
-            .toSet()
+        // Create a map of phone_number -> Firebase UID
+        val phoneToUidMap = snapshot.documents
+            .mapNotNull { doc ->
+                val phoneNumber = doc.getString("phone_number")
+                val uid = doc.getString("uid") ?: doc.id
+                if (phoneNumber != null) phoneNumber to uid else null
+            }
+            .toMap()
 
         val cursor = context.contentResolver.query(
             ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
@@ -37,11 +42,13 @@ class ContactsRepository(
                 val rawPhone = it.getString(numberIndex) ?: ""
                 val phoneFormated = formatPhoneNumber(rawPhone)
 
-                if (phoneFormated.isNotEmpty() && registeredPhoneNumbers.contains(phoneFormated)) {
+                // Get the Firebase UID for this phone number
+                val firebaseUid = phoneToUidMap[phoneFormated]
 
+                if (phoneFormated.isNotEmpty() && firebaseUid != null) {
                     contacts.add(
                         UserEntity(
-                            uid = phoneFormated,
+                            uid = firebaseUid,  // Use Firebase UID, not phone number
                             fullName = name,
                             phoneNumber = phoneFormated
                         )
@@ -49,7 +56,7 @@ class ContactsRepository(
                 }
             }
         }
-        return contacts.distinctBy { it.phoneNumber }
+        return contacts.distinctBy { it.uid }
     }
 
     fun formatPhoneNumber(phoneNumber:String): String{

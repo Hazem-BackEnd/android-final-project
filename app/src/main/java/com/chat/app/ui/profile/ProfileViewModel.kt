@@ -45,18 +45,30 @@ class ProfileViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
             
             try {
-                val userEntity = userRepository.getUser(uid)
+                // First try to get from local database
+                var userEntity = userRepository.getUser(uid)
+                
+                // If not found locally, fetch from Firebase and save locally
+                if (userEntity == null) {
+                    val firebaseUser = authRepository.getUserFromFirebase(uid)
+                    if (firebaseUser != null) {
+                        // Save to local database
+                        userRepository.saveUserLocally(firebaseUser)
+                        userEntity = firebaseUser
+                    }
+                }
+                
                 if (userEntity != null) {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         username = userEntity.fullName,
                         phone = userEntity.phoneNumber,
-                        email = "userEntity.email",
+                        email = "",
                         profileImageUrl = userEntity.profilePictureUrl,
                         uid = userEntity.uid
                     )
                 } else {
-                    // User not found in database, show empty state
+                    // User not found in database or Firebase
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         username = "",
