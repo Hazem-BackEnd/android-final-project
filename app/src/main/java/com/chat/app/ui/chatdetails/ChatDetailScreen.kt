@@ -22,16 +22,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.chat.app.R
-import com.chat.app.data.local.AppDatabase
-import com.chat.app.data.local.dao.ChatDao
 import com.chat.app.data.local.entities.MessageEntity
-import com.chat.app.data.remote.firebase.FirebaseAuthManager
-import com.chat.app.data.repository.ChatRepository
-import com.chat.app.data.repository.MessageRepository
-import com.chat.app.data.repository.UserRepository
 import kotlinx.coroutines.launch
 import kotlinx.parcelize.Parcelize
 
@@ -47,36 +41,18 @@ data class Message(
 fun ChatDetailScreen(
     chatId: String,
     otherUserName: String,
-    navController: NavController
+    navController: NavController,
+    viewModel: ChatDetailsViewModel = hiltViewModel()
 ) {
-    // 🔥 SETUP VIEWMODEL WITH FACTORY
-    val context = LocalContext.current
-    val database = AppDatabase.getDatabase(context)
-    val chatRepository = ChatRepository(database.chatDao())
-    val messageRepository = MessageRepository(context)
-    val userRepository = UserRepository(database.userDao())
-    
-    // 🔥 Get current user ID from Firebase Auth
-    val authManager = FirebaseAuthManager()
-    val currentUserId = authManager.currentUserId ?: "current_user"
-    
-    // 🔥 Extract otherUserId from chatId (format: "userId1_userId2")
-    val otherUserId = chatId.split("_").firstOrNull { it != currentUserId } ?: chatId
-    
-    val viewModel: ChatDetailsViewModel = viewModel(
-        factory = ChatDetailsViewModelFactory(
-            chatRepository = chatRepository,
-            messageRepository = messageRepository,
-            userRepository = userRepository,
-            chatId = chatId,
-            otherUserName = otherUserName,
-            otherUserId = otherUserId,
-            currentUserId = currentUserId
-        )
-    )
-    
     // 🔥 COLLECT UI STATE FROM VIEWMODEL
     val uiState by viewModel.uiState.collectAsState()
+    
+    // 🔥 Initialize chat when screen opens (CRITICAL for syncing)
+    LaunchedEffect(chatId, otherUserName) {
+        // Extract otherUserId from chatId (format: "userId1_userId2")
+        val otherUserId = chatId.split("_").find { it != "current_user" } ?: otherUserName
+        viewModel.initializeChat(chatId, otherUserName, otherUserId)
+    }
     
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()

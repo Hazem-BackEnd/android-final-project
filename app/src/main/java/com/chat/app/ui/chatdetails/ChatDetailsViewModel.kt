@@ -5,13 +5,16 @@ import androidx.lifecycle.viewModelScope
 import com.chat.app.data.local.entities.ChatEntity
 import com.chat.app.data.local.entities.MessageEntity
 import com.chat.app.data.local.entities.UserEntity
+import com.chat.app.data.repository.AuthRepository
 import com.chat.app.data.repository.ChatRepository
 import com.chat.app.data.repository.MessageRepository
 import com.chat.app.data.repository.UserRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
+import javax.inject.Inject
 
 /**
  * UI State for ChatDetailsScreen
@@ -30,42 +33,46 @@ data class ChatDetailsUiState(
     val shouldShowMessages: Boolean get() = !isLoading && messages.isNotEmpty()
 }
 
-class ChatDetailsViewModel(
+@HiltViewModel
+class ChatDetailsViewModel @Inject constructor(
     private val chatRepository: ChatRepository,
     private val messageRepository: MessageRepository,
     private val userRepository: UserRepository,
-    private val chatId: String,
-    private val otherUserName: String,
-    private val otherUserId: String,
-    private val currentUserId: String = "current_user"
+    private val authRepository: AuthRepository
 ): ViewModel() {
     
     // Private mutable state
-    private val _uiState = MutableStateFlow(
-        ChatDetailsUiState(
-            chatId = chatId,
-            otherUserName = otherUserName
-        )
-    )
+    private val _uiState = MutableStateFlow(ChatDetailsUiState())
     // Public read-only state
     val uiState = _uiState.asStateFlow()
     
     private val timeFormatter = SimpleDateFormat("hh:mm a", Locale.getDefault())
+    private var currentUserId: String = ""
     
-    init {
+    /**
+     * Initialize chat with parameters - call this from the UI
+     */
+    fun initializeChat(chatId: String, otherUserName: String, otherUserId: String) {
+        currentUserId = authRepository.getCurrentUserId() ?: "current_user"
+        
+        _uiState.value = _uiState.value.copy(
+            chatId = chatId,
+            otherUserName = otherUserName
+        )
+        
         // 🔥 Step 1: Save the other user locally and create/update the chat
-        initializeChat()
+        initializeChatData(chatId, otherUserName, otherUserId)
         // 🔥 Step 2: Load messages from local DB
-        loadMessages()
+        loadMessages(chatId)
         // 🔥 Step 3: Start syncing with Firebase (CRITICAL)
-        startMessageSyncing()
+        startMessageSyncing(chatId)
     }
     
     /**
      * 🔥 Initialize chat: Save user locally and create/update chat entity
      * This follows the "Starting a Chat" logic from the documentation
      */
-    private fun initializeChat() {
+    private fun initializeChatData(chatId: String, otherUserName: String, otherUserId: String) {
         viewModelScope.launch {
             try {
                 // Step A.1: Save the other user locally
@@ -96,7 +103,7 @@ class ChatDetailsViewModel(
     /**
      * Load messages for this chat from repository
      */
-    private fun loadMessages() {
+    private fun loadMessages(chatId: String) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
             
@@ -125,10 +132,11 @@ class ChatDetailsViewModel(
             }
         }
     }
+    
     /**
      * Start syncing messages with Firebase
      */
-    private fun startMessageSyncing() {
+    private fun startMessageSyncing(chatId: String) {
         try {
             messageRepository.startSyncing(chatId)
             println("🔄 Started message syncing for chat: $chatId")
@@ -143,9 +151,15 @@ class ChatDetailsViewModel(
     fun sendMessage(content: String) {
         if (content.isBlank()) return
         
+        val chatId = _uiState.value.chatId
+        if (chatId.isEmpty()) {
+            println("❌ Cannot send message: chatId is empty")
+            return
+        }
+        
         viewModelScope.launch {
             try {
-                // Send message via repository
+                // Send message via repository (follows Single Source of Truth pattern)
                 messageRepository.sendMessage(chatId, content.trim())
                 
                 // Clear input text
@@ -179,6 +193,9 @@ class ChatDetailsViewModel(
      * Add sample messages for testing
      */
     fun addSampleMessages() {
+        val chatId = _uiState.value.chatId
+        if (chatId.isEmpty()) return
+        
         viewModelScope.launch {
             try {
                 val sampleMessages = listOf(
