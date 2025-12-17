@@ -52,7 +52,7 @@ fun ChatDetailScreen(
     // 🔥 SETUP VIEWMODEL WITH FACTORY
     val context = LocalContext.current
     val database = AppDatabase.getDatabase(context)
-    val chatRepository = ChatRepository(database.chatDao())
+    val chatRepository = ChatRepository(context)
     val messageRepository = MessageRepository(context)
     val userRepository = UserRepository(database.userDao())
     

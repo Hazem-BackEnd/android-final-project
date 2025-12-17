@@ -3,6 +3,7 @@ package com.chat.app.data.remote.firebase
 import android.util.Log
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -31,11 +32,20 @@ class FirebaseChatService {
                 .set(message)
                 .await()
 
+
+            val participants = chatId.split("_")
+
             val chatUpdate = mapOf(
                 "lastMessage" to message.content,
-                "timestamp" to message.timestamp
+                "timestamp" to message.timestamp,
+                "participants" to participants
             )
-            firestore.collection("chats").document(chatId).set(chatUpdate)
+
+            // Use MERGE to avoid overwriting other fields
+            firestore.collection("chats").document(chatId)
+                .set(chatUpdate, SetOptions.merge())
+                .await()
+
         } catch (e: Exception) {
             Log.e("FirebaseChat", "Error sending message", e)
         }
@@ -60,5 +70,34 @@ class FirebaseChatService {
         }
 
         awaitClose { listener.remove() }
+    }
+    fun listenToUserChats(userId: String): Flow<List<Map<String, Any>>> = callbackFlow {
+        val query = firestore.collection("chats")
+            .whereArrayContains("participants", userId)
+
+        val listener = query.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                close(error)
+                return@addSnapshotListener
+            }
+
+            val chatDocs = snapshot?.documents?.map { doc ->
+                val data = doc.data ?: emptyMap()
+                data + ("chatId" to doc.id) // Include the document ID
+            } ?: emptyList()
+
+            trySend(chatDocs)
+        }
+        awaitClose { listener.remove() }
+    }
+
+    // Helper to get user name from Firestore if not in contacts
+    suspend fun fetchUserName(userId: String): String {
+        return try {
+            val doc = firestore.collection("users").document(userId).get().await()
+            doc.getString("fullName") ?: "Unknown"
+        } catch (e: Exception) {
+            "Unknown"
+        }
     }
 }

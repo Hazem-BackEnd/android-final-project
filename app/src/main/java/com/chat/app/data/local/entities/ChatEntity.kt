@@ -12,6 +12,7 @@ data class ChatEntity(
     @PrimaryKey
     val chatId: String,
     val otherUserId: String,
+    val otherUserName: String,
     val lastMessage: String? = null,
     val timestamp: Long = System.currentTimeMillis()
 

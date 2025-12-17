@@ -43,6 +43,7 @@ class HomeScreenViewModel @Inject constructor(
     private val _allChats = MutableStateFlow<List<ChatEntity>>(emptyList())
     
     init {
+        chatRepository.startSyncingAllChats(currentUserId)
         loadChats()
     }
 
@@ -137,51 +138,51 @@ class HomeScreenViewModel @Inject constructor(
     /**
      * 🔥 UPDATED: Add sample data with proper chat IDs for current user
      */
-    fun addSampleData() {
-        viewModelScope.launch {
-            try {
-                val sampleChats = listOf(
-                    ChatEntity(
-                        chatId = "${currentUserId}_ahmed_ali", // 🔥 Include current user in chat ID
-                        otherUserId = "Ahmed Ali",
-                        lastMessage = "Hey, how are you doing? Let's catch up soon!",
-                        timestamp = System.currentTimeMillis() - 3600000 // 1 hour ago
-                    ),
-                    ChatEntity(
-                        chatId = "${currentUserId}_mariam_hassan",
-                        otherUserId = "Mariam Hassan", 
-                        lastMessage = "Let's meet tomorrow at 5 PM for coffee",
-                        timestamp = System.currentTimeMillis() - 7200000 // 2 hours ago
-                    ),
-                    ChatEntity(
-                        chatId = "${currentUserId}_omar_khaled",
-                        otherUserId = "Omar Khaled",
-                        lastMessage = "Thanks for your help with the project!",
-                        timestamp = System.currentTimeMillis() - 86400000 // 1 day ago
-                    ),
-                    ChatEntity(
-                        chatId = "${currentUserId}_sara_mohamed",
-                        otherUserId = "Sara Mohamed",
-                        lastMessage = "See you soon at the meeting 👋",
-                        timestamp = System.currentTimeMillis() - 172800000 // 2 days ago
-                    ),
-                    ChatEntity(
-                        chatId = "${currentUserId}_hassan_ahmed",
-                        otherUserId = "Hassan Ahmed",
-                        lastMessage = "Call me when you're free to discuss the plan",
-                        timestamp = System.currentTimeMillis() - 259200000 // 3 days ago
-                    )
-                )
-                
-                sampleChats.forEach { chat ->
-                    chatRepository.createOrUpdateChat(chat)
-                }
-                
-                println("✅ Sample chats added for user: $currentUserId")
-                println("🔍 Try searching for: 'Ahmed', 'meeting', 'help', 'coffee'")
-            } catch (e: Exception) {
-                println("❌ Error adding sample chats: ${e.message}")
-            }
-        }
-    }
+//    fun addSampleData() {
+//        viewModelScope.launch {
+//            try {
+//                val sampleChats = listOf(
+//                    ChatEntity(
+//                        chatId = "${currentUserId}_ahmed_ali", // 🔥 Include current user in chat ID
+//                        otherUserId = "Ahmed Ali",
+//                        lastMessage = "Hey, how are you doing? Let's catch up soon!",
+//                        timestamp = System.currentTimeMillis() - 3600000 // 1 hour ago
+//                    ),
+//                    ChatEntity(
+//                        chatId = "${currentUserId}_mariam_hassan",
+//                        otherUserId = "Mariam Hassan",
+//                        lastMessage = "Let's meet tomorrow at 5 PM for coffee",
+//                        timestamp = System.currentTimeMillis() - 7200000 // 2 hours ago
+//                    ),
+//                    ChatEntity(
+//                        chatId = "${currentUserId}_omar_khaled",
+//                        otherUserId = "Omar Khaled",
+//                        lastMessage = "Thanks for your help with the project!",
+//                        timestamp = System.currentTimeMillis() - 86400000 // 1 day ago
+//                    ),
+//                    ChatEntity(
+//                        chatId = "${currentUserId}_sara_mohamed",
+//                        otherUserId = "Sara Mohamed",
+//                        lastMessage = "See you soon at the meeting 👋",
+//                        timestamp = System.currentTimeMillis() - 172800000 // 2 days ago
+//                    ),
+//                    ChatEntity(
+//                        chatId = "${currentUserId}_hassan_ahmed",
+//                        otherUserId = "Hassan Ahmed",
+//                        lastMessage = "Call me when you're free to discuss the plan",
+//                        timestamp = System.currentTimeMillis() - 259200000 // 3 days ago
+//                    )
+//                )
+//
+//                sampleChats.forEach { chat ->
+//                    chatRepository.createOrUpdateChat(chat)
+//                }
+//
+//                println("✅ Sample chats added for user: $currentUserId")
+//                println("🔍 Try searching for: 'Ahmed', 'meeting', 'help', 'coffee'")
+//            } catch (e: Exception) {
+//                println("❌ Error adding sample chats: ${e.message}")
+//            }
+//        }
+//    }
 }

@@ -12,7 +12,7 @@ import androidx.room.PrimaryKey
             entity = ChatEntity::class,
             parentColumns = ["chatId"],
             childColumns = ["chatId"],
-            onDelete = ForeignKey.CASCADE
+            onDelete = ForeignKey.NO_ACTION
         )
     ],
     indices = [Index(value = ["chatId","timestamp"])]

@@ -89,6 +89,7 @@ class ChatDetailsViewModel(
                 chatRepository.createOrUpdateChat(ChatEntity(
                     chatId = chatId,
                     otherUserId = otherUserId,
+                    otherUserName = otherUserName,
                     lastMessage = null,
                     timestamp = System.currentTimeMillis()
                 ))

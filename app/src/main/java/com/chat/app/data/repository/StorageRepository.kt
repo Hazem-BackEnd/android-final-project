@@ -82,23 +82,4 @@ class StorageRepository @Inject constructor(
         }
     }
 
-    suspend fun deleteProfileImage(fileName: String): Boolean {
-        return try {
-            storage.from(SupabaseConfig.PROFILE_IMAGES_BUCKET).delete(fileName)
-            true
-        } catch (e: Exception) {
-            e.printStackTrace()
-            false
-        }
-    }
-    
-    suspend fun testConnection(): Boolean {
-        return try {
-            val buckets = storage.retrieveBuckets()
-            true
-        } catch (e: Exception) {
-            e.printStackTrace()
-            false
-        }
-    }
 }

@@ -277,8 +277,8 @@ fun HomeScreen(
                                         viewModel.onChatClicked(chatId)
                                         // Navigate to chat details with otherUserId and otherUserName
                                         // TODO: Get actual display name from UserRepository
-                                        val encodedUserId = Uri.encode(chatEntity.otherUserId)
-                                        navController?.navigate("${Routes.CHAT_DETAIL}/${chatEntity.otherUserId}/$encodedUserId")
+                                        val encodedUserName = Uri.encode(chatEntity.otherUserName)
+                                        navController?.navigate("${Routes.CHAT_DETAIL}/${chatEntity.otherUserId}/$encodedUserName")
                                     }
                                 )
                             }
@@ -374,7 +374,7 @@ fun ChatRowFromEntity(
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = chatEntity.otherUserId,
+                text = chatEntity.otherUserName,
                 fontWeight = FontWeight.Bold,
                 fontSize = 18.sp
             )

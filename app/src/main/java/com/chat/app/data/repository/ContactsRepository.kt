@@ -42,13 +42,12 @@ class ContactsRepository(
                 val rawPhone = it.getString(numberIndex) ?: ""
                 val phoneFormated = formatPhoneNumber(rawPhone)
 
-                // Get the Firebase UID for this phone number
                 val firebaseUid = phoneToUidMap[phoneFormated]
 
                 if (phoneFormated.isNotEmpty() && firebaseUid != null) {
                     contacts.add(
                         UserEntity(
-                            uid = firebaseUid,  // Use Firebase UID, not phone number
+                            uid = firebaseUid,
                             fullName = name,
                             phoneNumber = phoneFormated
                         )
