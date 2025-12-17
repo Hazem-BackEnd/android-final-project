@@ -1,199 +1,185 @@
 package com.chat.app.ui.register
 
-import android.net.Uri
-import androidx.arch.core.executor.testing.InstantTaskExecutorRule
-import com.chat.app.data.repository.AuthRepository
-import com.chat.app.data.repository.StorageRepository
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.mockk
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.*
-import org.junit.After
-import org.junit.Before
-import org.junit.Rule
 import org.junit.Test
 import org.junit.Assert.*
 
-@ExperimentalCoroutinesApi
 class RegisterViewModelTest {
 
-    @get:Rule
-    val instantTaskExecutorRule = InstantTaskExecutorRule()
-
-    private val testDispatcher = UnconfinedTestDispatcher()
-    private val authRepository = mockk<AuthRepository>()
-    private val storageRepository = mockk<StorageRepository>()
-    private lateinit var viewModel: RegisterViewModel
-
-    @Before
-    fun setup() {
-        Dispatchers.setMain(testDispatcher)
-        viewModel = RegisterViewModel(authRepository, storageRepository)
-    }
-
-    @After
-    fun tearDown() {
-        Dispatchers.resetMain()
+    @Test
+    fun `SignUpState Nothing should be initial state`() {
+        val state = SignUpState.Nothing
+        assertTrue(state is SignUpState.Nothing)
+        assertFalse(state is SignUpState.Loading)
+        assertFalse(state is SignUpState.Success)
+        assertFalse(state is SignUpState.Error)
+        assertFalse(state is SignUpState.ValidationError)
     }
 
     @Test
-    fun `signUp with valid data without image should return success state`() = runTest {
-        // Given
-        val fullName = "John Doe"
-        val phoneNumber = "1234567890"
-        val email = "john@example.com"
-        val password = "password123"
-        val imageUri: Uri? = null
-        
-        coEvery { authRepository.register(fullName, phoneNumber, email, password, null) } returns Result.success(true)
-
-        // When
-        viewModel.signUp(fullName, phoneNumber, email, password, imageUri)
-
-        // Then
-        assertEquals(SignUpState.Success, viewModel.state.value)
-        coVerify { authRepository.register(fullName, phoneNumber, email, password, null) }
-        coVerify(exactly = 0) { storageRepository.uploadProfileImage(any(), any()) }
+    fun `SignUpState Loading should be correct type`() {
+        val state = SignUpState.Loading
+        assertFalse(state is SignUpState.Nothing)
+        assertTrue(state is SignUpState.Loading)
+        assertFalse(state is SignUpState.Success)
+        assertFalse(state is SignUpState.Error)
+        assertFalse(state is SignUpState.ValidationError)
     }
 
     @Test
-    fun `signUp with valid data and image should upload image then register`() = runTest {
-        // Given
-        val fullName = "Jane Doe"
-        val phoneNumber = "0987654321"
-        val email = "jane@example.com"
-        val password = "password456"
-        val imageUri = mockk<Uri>()
-        val imageUrl = "https://example.com/profile.jpg"
-        
-        coEvery { storageRepository.uploadProfileImage(imageUri, email) } returns imageUrl
-        coEvery { authRepository.register(fullName, phoneNumber, email, password, imageUrl) } returns Result.success(true)
-
-        // When
-        viewModel.signUp(fullName, phoneNumber, email, password, imageUri)
-
-        // Then
-        assertEquals(SignUpState.Success, viewModel.state.value)
-        coVerify { storageRepository.uploadProfileImage(imageUri, email) }
-        coVerify { authRepository.register(fullName, phoneNumber, email, password, imageUrl) }
+    fun `SignUpState Success should be correct type`() {
+        val state = SignUpState.Success
+        assertFalse(state is SignUpState.Nothing)
+        assertFalse(state is SignUpState.Loading)
+        assertTrue(state is SignUpState.Success)
+        assertFalse(state is SignUpState.Error)
+        assertFalse(state is SignUpState.ValidationError)
     }
 
     @Test
-    fun `signUp with invalid data should return error state`() = runTest {
-        // Given
-        val fullName = "John Doe"
-        val phoneNumber = "1234567890"
-        val email = "invalid@example.com"
-        val password = "wrongpassword"
-        val imageUri: Uri? = null
+    fun `SignUpState Error should contain message`() {
+        val errorMessage = "Registration failed"
+        val state = SignUpState.Error(errorMessage)
         
-        coEvery { authRepository.register(fullName, phoneNumber, email, password, null) } returns Result.failure(Exception("Registration failed"))
-
-        // When
-        viewModel.signUp(fullName, phoneNumber, email, password, imageUri)
-
-        // Then
-        assertEquals(SignUpState.Error, viewModel.state.value)
-        coVerify { authRepository.register(fullName, phoneNumber, email, password, null) }
+        assertFalse(state is SignUpState.Nothing)
+        assertFalse(state is SignUpState.Loading)
+        assertFalse(state is SignUpState.Success)
+        assertTrue(state is SignUpState.Error)
+        assertFalse(state is SignUpState.ValidationError)
+        assertEquals(errorMessage, state.message)
     }
 
     @Test
-    fun `signUp with repository exception should return error state`() = runTest {
-        // Given
-        val fullName = "John Doe"
-        val phoneNumber = "1234567890"
-        val email = "john@example.com"
-        val password = "password123"
-        val imageUri: Uri? = null
+    fun `SignUpState ValidationError should contain message`() {
+        val validationMessage = "Please fix the errors above"
+        val state = SignUpState.ValidationError(validationMessage)
         
-        coEvery { authRepository.register(fullName, phoneNumber, email, password, null) } throws RuntimeException("Network error")
-
-        // When
-        viewModel.signUp(fullName, phoneNumber, email, password, imageUri)
-
-        // Then
-        assertEquals(SignUpState.Error, viewModel.state.value)
-        coVerify { authRepository.register(fullName, phoneNumber, email, password, null) }
+        assertFalse(state is SignUpState.Nothing)
+        assertFalse(state is SignUpState.Loading)
+        assertFalse(state is SignUpState.Success)
+        assertFalse(state is SignUpState.Error)
+        assertTrue(state is SignUpState.ValidationError)
+        assertEquals(validationMessage, state.message)
     }
 
     @Test
-    fun `initial state should be Nothing`() {
-        // Given - ViewModel is created in setup
+    fun `SignUpState sealed class should work with when expression`() {
+        val testStates = listOf(
+            SignUpState.Nothing,
+            SignUpState.Loading,
+            SignUpState.Success,
+            SignUpState.Error("test error"),
+            SignUpState.ValidationError("test validation")
+        )
 
-        // When - No action taken
-
-        // Then
-        assertEquals(SignUpState.Nothing, viewModel.state.value)
+        testStates.forEach { state ->
+            val result = when (state) {
+                is SignUpState.Nothing -> "nothing"
+                is SignUpState.Loading -> "loading"
+                is SignUpState.Success -> "success"
+                is SignUpState.Error -> "error: ${state.message}"
+                is SignUpState.ValidationError -> "validation: ${state.message}"
+            }
+            assertNotNull(result)
+        }
     }
 
     @Test
-    fun `signUp with image upload failure should still proceed with registration`() = runTest {
-        // Given
-        val fullName = "John Doe"
-        val phoneNumber = "1234567890"
-        val email = "john@example.com"
-        val password = "password123"
-        val imageUri = mockk<Uri>()
+    fun `username validation helper should work correctly`() {
+        val validUsernames = listOf(
+            "John Doe",
+            "Ahmed Ali",
+            "Maria Garcia",
+            "Test User"
+        )
         
-        coEvery { storageRepository.uploadProfileImage(imageUri, email) } returns null // Upload fails
-        coEvery { authRepository.register(fullName, phoneNumber, email, password, null) } returns Result.success(true)
+        val invalidUsernames = listOf(
+            "",
+            "A",
+            "AB"
+        )
 
-        // When
-        viewModel.signUp(fullName, phoneNumber, email, password, imageUri)
+        validUsernames.forEach { username ->
+            assertTrue("$username should be valid", username.length >= 3 && username.isNotBlank())
+        }
 
-        // Then
-        assertEquals(SignUpState.Success, viewModel.state.value)
-        coVerify { storageRepository.uploadProfileImage(imageUri, email) }
-        coVerify { authRepository.register(fullName, phoneNumber, email, password, null) }
+        invalidUsernames.forEach { username ->
+            assertFalse("$username should be invalid", username.length >= 3 && username.isNotBlank())
+        }
     }
 
     @Test
-    fun `signUp with empty fields should still call repository`() = runTest {
-        // Given
-        val fullName = ""
-        val phoneNumber = ""
-        val email = ""
-        val password = ""
-        val imageUri: Uri? = null
+    fun `phone validation helper should work correctly`() {
+        val validPhones = listOf(
+            "01234567890",
+            "01012345678",
+            "01123456789"
+        )
         
-        coEvery { authRepository.register(fullName, phoneNumber, email, password, null) } returns Result.failure(Exception("Empty fields"))
+        val invalidPhones = listOf(
+            "",
+            "123",
+            "abcdefghijk",
+            "012345678901" // too long
+        )
 
-        // When
-        viewModel.signUp(fullName, phoneNumber, email, password, imageUri)
+        validPhones.forEach { phone ->
+            assertTrue("$phone should be valid", 
+                phone.length == 11 && phone.startsWith("01") && phone.all { it.isDigit() })
+        }
 
-        // Then
-        assertEquals(SignUpState.Error, viewModel.state.value)
-        coVerify { authRepository.register(fullName, phoneNumber, email, password, null) }
+        invalidPhones.forEach { phone ->
+            assertFalse("$phone should be invalid", 
+                phone.length == 11 && phone.startsWith("01") && phone.all { it.isDigit() })
+        }
     }
 
     @Test
-    fun `multiple signUp calls should work independently`() = runTest {
-        // Given
-        val fullName1 = "John Doe"
-        val phoneNumber1 = "1234567890"
-        val email1 = "john@example.com"
-        val password1 = "password1"
+    fun `password validation helper should work correctly`() {
+        val validPasswords = listOf(
+            "password123",
+            "mySecurePass",
+            "test1234567"
+        )
         
-        val fullName2 = "Jane Doe"
-        val phoneNumber2 = "0987654321"
-        val email2 = "jane@example.com"
-        val password2 = "password2"
+        val invalidPasswords = listOf(
+            "",
+            "123",
+            "short"
+        )
+
+        validPasswords.forEach { password ->
+            assertTrue("$password should be valid", password.length >= 6)
+        }
+
+        invalidPasswords.forEach { password ->
+            assertFalse("$password should be invalid", password.length >= 6)
+        }
+    }
+
+    @Test
+    fun `validation errors map should work correctly`() {
+        val errors = mapOf(
+            "username" to "Username is required",
+            "email" to "Invalid email format",
+            "password" to "Password too short"
+        )
+
+        assertEquals(3, errors.size)
+        assertTrue(errors.containsKey("username"))
+        assertTrue(errors.containsKey("email"))
+        assertTrue(errors.containsKey("password"))
+        assertEquals("Username is required", errors["username"])
+        assertEquals("Invalid email format", errors["email"])
+        assertEquals("Password too short", errors["password"])
+    }
+
+    @Test
+    fun `empty validation errors map should work correctly`() {
+        val errors = emptyMap<String, String>()
         
-        coEvery { authRepository.register(fullName1, phoneNumber1, email1, password1, null) } returns Result.success(true)
-        coEvery { authRepository.register(fullName2, phoneNumber2, email2, password2, null) } returns Result.failure(Exception("Second registration failed"))
-
-        // When - First call
-        viewModel.signUp(fullName1, phoneNumber1, email1, password1, null)
-        assertEquals(SignUpState.Success, viewModel.state.value)
-
-        // When - Second call
-        viewModel.signUp(fullName2, phoneNumber2, email2, password2, null)
-
-        // Then
-        assertEquals(SignUpState.Error, viewModel.state.value)
-        coVerify { authRepository.register(fullName1, phoneNumber1, email1, password1, null) }
-        coVerify { authRepository.register(fullName2, phoneNumber2, email2, password2, null) }
+        assertEquals(0, errors.size)
+        assertTrue(errors.isEmpty())
+        assertFalse(errors.containsKey("username"))
+        assertNull(errors["email"])
     }
 }

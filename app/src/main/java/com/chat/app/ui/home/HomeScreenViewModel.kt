@@ -42,7 +42,7 @@ class HomeScreenViewModel @Inject constructor(
     // All chats from database
     private val _allChats = MutableStateFlow<List<ChatEntity>>(emptyList())
     
-    init{
+    init {
         loadChats()
     }
 

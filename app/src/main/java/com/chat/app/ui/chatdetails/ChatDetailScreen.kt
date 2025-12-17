@@ -45,7 +45,7 @@ data class Message(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatDetailScreen(
-    chatId: String,
+    otherUserId: String,
     otherUserName: String,
     navController: NavController
 ) {
@@ -56,22 +56,17 @@ fun ChatDetailScreen(
     val messageRepository = MessageRepository(context)
     val userRepository = UserRepository(database.userDao())
     
-    // 🔥 Get current user ID from Firebase Auth
+    // 🔥 Get Firebase Auth Manager
     val authManager = FirebaseAuthManager()
-    val currentUserId = authManager.currentUserId ?: "current_user"
-    
-    // 🔥 Extract otherUserId from chatId (format: "userId1_userId2")
-    val otherUserId = chatId.split("_").firstOrNull { it != currentUserId } ?: chatId
     
     val viewModel: ChatDetailsViewModel = viewModel(
         factory = ChatDetailsViewModelFactory(
             chatRepository = chatRepository,
             messageRepository = messageRepository,
             userRepository = userRepository,
-            chatId = chatId,
+            authManager = authManager,
             otherUserName = otherUserName,
-            otherUserId = otherUserId,
-            currentUserId = currentUserId
+            otherUserId = otherUserId
         )
     )
     

@@ -16,7 +16,9 @@ class MessageRepository(context: Context) {
     private val messageDao = AppDatabase.getDatabase(context).messageDao()
     private val firebaseService = FirebaseChatService()
     private val authManager = FirebaseAuthManager()
-    private val currentUserId = authManager.currentUserId ?: ""
+    
+    // Get currentUserId dynamically to ensure it's always fresh
+    private val currentUserId: String get() = authManager.currentUserId ?: ""
 
     fun getMessages(chatId: String): Flow<List<MessageEntity>> {
         return messageDao.getMessagesForChat(chatId)

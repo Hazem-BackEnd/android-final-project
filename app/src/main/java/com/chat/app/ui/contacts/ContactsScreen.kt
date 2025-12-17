@@ -30,6 +30,7 @@ import androidx.navigation.NavController
 import com.chat.app.data.local.entities.UserEntity
 import com.chat.app.data.remote.firebase.FirebaseAuthManager
 import com.chat.app.data.repository.ContactsRepository
+import com.chat.app.navigation.Routes
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -190,9 +191,7 @@ fun ContactsScreen(navController: NavController) {
                 }
                 
                 uiState.shouldShowContacts -> {
-                    // Get current user ID from Firebase Auth
-                    val authManager = FirebaseAuthManager()
-                    val currentUserId = authManager.currentUserId ?: "current_user"
+
                     
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
@@ -203,12 +202,10 @@ fun ContactsScreen(navController: NavController) {
                                 contact = contact,
                                 onContactClick = { 
                                     // Navigate to chat with this contact
-                                    // Use contact.uid (phone number digits only) for chatId
+                                    // Pass otherUserId and otherUserName - let ChatDetailsViewModel generate chatId
                                     val otherUserId = contact.uid
-                                    val chatId = generateChatId(currentUserId, otherUserId)
-                                    // URL encode the contact name to handle special characters (spaces, slashes, etc.)
                                     val encodedName = Uri.encode(contact.fullName)
-                                    navController.navigate("chat_detail/$chatId/$encodedName")
+                                    navController.navigate("${Routes.CHAT_DETAIL}/$otherUserId/$encodedName")
                                 }
                             )
                         }
@@ -313,11 +310,3 @@ private fun getColorForContact(contactId: String): Color {
     return colors[contactId.hashCode().mod(colors.size)]
 }
 
-/**
- * Generate consistent chatId for two users
- */
-private fun generateChatId(userId1: String, userId2: String): String {
-    // Sort user IDs to ensure consistent chatId regardless of order
-    val sortedIds = listOf(userId1, userId2).sorted()
-    return "${sortedIds[0]}_${sortedIds[1]}"
-}

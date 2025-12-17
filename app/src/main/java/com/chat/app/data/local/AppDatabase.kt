@@ -13,7 +13,7 @@ import com.chat.app.data.local.entities.UserEntity
 
 @Database(
     entities = [UserEntity::class, ChatEntity::class, MessageEntity::class],
-    version = 1,
+    version = 3,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {

@@ -1,0 +1,573 @@
+Index: app/src/main/java/com/chat/app/data/local/AppDatabase.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package com.chat.app.data.local\n\nimport android.content.Context\nimport androidx.room.Database\nimport androidx.room.Room\nimport androidx.room.RoomDatabase\nimport com.chat.app.data.local.dao.ChatDao\nimport com.chat.app.data.local.dao.MessageDao\nimport com.chat.app.data.local.dao.UserDao\nimport com.chat.app.data.local.entities.ChatEntity\nimport com.chat.app.data.local.entities.MessageEntity\nimport com.chat.app.data.local.entities.UserEntity\n\n@Database(\n    entities = [UserEntity::class, ChatEntity::class, MessageEntity::class],\n    version = 2,\n    exportSchema = true\n)\nabstract class AppDatabase : RoomDatabase() {\n    abstract fun userDao(): UserDao\n    abstract fun chatDao(): ChatDao\n    abstract fun messageDao(): MessageDao\n\n    companion object {\n        @Volatile\n        private var INSTANCE: AppDatabase? = null\n\n        fun getDatabase(context: Context): AppDatabase {\n            return INSTANCE ?: synchronized(this) {\n                Room.databaseBuilder(\n                    context.applicationContext,\n                    AppDatabase::class.java,\n                    \"chat_app_database\"\n                )\n                .fallbackToDestructiveMigration()\n                .build()\n                .also { INSTANCE = it }\n            }\n        }\n    }\n}
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/main/java/com/chat/app/data/local/AppDatabase.kt b/app/src/main/java/com/chat/app/data/local/AppDatabase.kt
+--- a/app/src/main/java/com/chat/app/data/local/AppDatabase.kt	(revision 6e2d43c3809d3c9bc90f507810cf5749a51abbc3)
++++ b/app/src/main/java/com/chat/app/data/local/AppDatabase.kt	(date 1765955271739)
+@@ -13,7 +13,7 @@
+ 
+ @Database(
+     entities = [UserEntity::class, ChatEntity::class, MessageEntity::class],
+-    version = 2,
++    version = 1,
+     exportSchema = true
+ )
+ abstract class AppDatabase : RoomDatabase() {
+Index: app/src/main/java/com/chat/app/ui/home/HomeScreenViewModel.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package com.chat.app.ui.home\n\nimport androidx.lifecycle.ViewModel\nimport androidx.lifecycle.viewModelScope\nimport com.chat.app.data.local.entities.ChatEntity\nimport com.chat.app.data.remote.firebase.FirebaseAuthManager\nimport com.chat.app.data.repository.AuthRepository\nimport com.chat.app.data.repository.ChatRepository\nimport dagger.hilt.android.lifecycle.HiltViewModel\nimport kotlinx.coroutines.flow.*\nimport kotlinx.coroutines.launch\nimport javax.inject.Inject\n\ndata class HomeUiState(\n    val chats: List<ChatEntity> = emptyList(),\n    val isLoading: Boolean = false,\n    val searchQuery: String = \"\",\n    val isSearching: Boolean = false,\n    val errorMessage: String? = null\n) {\n    // Helper properties for UI logic\n    val shouldShowLoading: Boolean get() = isLoading && chats.isEmpty()\n    val shouldShowEmpty: Boolean get() = !isLoading && chats.isEmpty() && errorMessage == null\n    val shouldShowChats: Boolean get() = !isLoading && chats.isNotEmpty()\n}\n\n@HiltViewModel\nclass HomeScreenViewModel @Inject constructor(\n    private val chatRepository: ChatRepository,\n    private val authRepository: AuthRepository\n): ViewModel(){\n    \n    // \uD83D\uDD25 Get real user ID from Firebase Auth\n    private val authManager = FirebaseAuthManager()\n    private val currentUserId: String = authManager.currentUserId ?: \"current_user\"\n    \n    // Private mutable state\n    private val _uiState = MutableStateFlow(HomeUiState())\n    // Public read-only state\n    val uiState = _uiState.asStateFlow()\n    \n    // All chats from database\n    private val _allChats = MutableStateFlow<List<ChatEntity>>(emptyList())\n    \n    init{\n        loadChats()\n    }\n\n    private fun loadChats() {\n        viewModelScope.launch {\n            _uiState.value = _uiState.value.copy(isLoading = true)\n            \n            try {\n                // \uD83D\uDD25 UPDATED: Use user-specific chat query instead of all chats\n                chatRepository.getChatsForUser(currentUserId)\n                    .catch { exception ->\n                        _uiState.value = _uiState.value.copy(\n                            isLoading = false,\n                            errorMessage = exception.message\n                        )\n                    }\n                    .collect { chatList ->\n                        _allChats.value = chatList\n                        updateFilteredChats()\n                        _uiState.value = _uiState.value.copy(\n                            isLoading = false,\n                            errorMessage = null\n                        )\n                        println(\"\uD83D\uDCF1 Loaded ${chatList.size} chats for user: $currentUserId\")\n                    }\n            } catch (e: Exception) {\n                _uiState.value = _uiState.value.copy(\n                    isLoading = false,\n                    errorMessage = e.message\n                )\n                println(\"❌ Error loading chats: ${e.message}\")\n            }\n        }\n    }\n    fun updateSearchQuery(query: String) {\n        _uiState.value = _uiState.value.copy(searchQuery = query)\n        updateFilteredChats()\n    }\n\n    fun toggleSearch() {\n        val newSearching = !_uiState.value.isSearching\n        _uiState.value = _uiState.value.copy(\n            isSearching = newSearching,\n            searchQuery = if (!newSearching) \"\" else _uiState.value.searchQuery\n        )\n        updateFilteredChats()\n    }\n\n    private fun updateFilteredChats() {\n        val currentState = _uiState.value\n        \n        if (currentState.searchQuery.isEmpty()) {\n            // No search query - use all chats\n            _uiState.value = currentState.copy(chats = _allChats.value)\n        } else {\n            // \uD83D\uDD25 UPDATED: Use database search for better performance\n            viewModelScope.launch {\n                try {\n                    chatRepository.searchChatsForUser(currentUserId, currentState.searchQuery)\n                        .collect { searchResults ->\n                            _uiState.value = _uiState.value.copy(chats = searchResults)\n                            println(\"\uD83D\uDD0D Search results for '${currentState.searchQuery}': ${searchResults.size} chats\")\n                        }\n                } catch (e: Exception) {\n                    // Fallback to in-memory search if database search fails\n                    val filteredChats = _allChats.value.filter { chat ->\n                        chat.otherUserId.contains(currentState.searchQuery, ignoreCase = true) ||\n                        (chat.lastMessage?.contains(currentState.searchQuery, ignoreCase = true) == true)\n                    }\n                    _uiState.value = currentState.copy(chats = filteredChats)\n                    println(\"⚠\uFE0F Database search failed, using in-memory search: ${e.message}\")\n                }\n            }\n        }\n    }\n    fun onChatClicked(chatId: String) {\n        println(\"\uD83D\uDD25 Chat clicked: $chatId\")\n        // Navigation will be handled in the UI layer\n    }\n\n    fun logout() {\n        viewModelScope.launch {\n            try {\n                authRepository.logout()\n            } catch (e: Exception) {\n                _uiState.value = _uiState.value.copy(\n                    errorMessage = \"Failed to logout: ${e.message}\"\n                )\n            }\n        }\n    }\n    /**\n     * \uD83D\uDD25 UPDATED: Add sample data with proper chat IDs for current user\n     */\n    fun addSampleData() {\n        viewModelScope.launch {\n            try {\n                val sampleChats = listOf(\n                    ChatEntity(\n                        chatId = \"${currentUserId}_ahmed_ali\", // \uD83D\uDD25 Include current user in chat ID\n                        otherUserId = \"Ahmed Ali\",\n                        lastMessage = \"Hey, how are you doing? Let's catch up soon!\",\n                        timestamp = System.currentTimeMillis() - 3600000 // 1 hour ago\n                    ),\n                    ChatEntity(\n                        chatId = \"${currentUserId}_mariam_hassan\",\n                        otherUserId = \"Mariam Hassan\", \n                        lastMessage = \"Let's meet tomorrow at 5 PM for coffee\",\n                        timestamp = System.currentTimeMillis() - 7200000 // 2 hours ago\n                    ),\n                    ChatEntity(\n                        chatId = \"${currentUserId}_omar_khaled\",\n                        otherUserId = \"Omar Khaled\",\n                        lastMessage = \"Thanks for your help with the project!\",\n                        timestamp = System.currentTimeMillis() - 86400000 // 1 day ago\n                    ),\n                    ChatEntity(\n                        chatId = \"${currentUserId}_sara_mohamed\",\n                        otherUserId = \"Sara Mohamed\",\n                        lastMessage = \"See you soon at the meeting \uD83D\uDC4B\",\n                        timestamp = System.currentTimeMillis() - 172800000 // 2 days ago\n                    ),\n                    ChatEntity(\n                        chatId = \"${currentUserId}_hassan_ahmed\",\n                        otherUserId = \"Hassan Ahmed\",\n                        lastMessage = \"Call me when you're free to discuss the plan\",\n                        timestamp = System.currentTimeMillis() - 259200000 // 3 days ago\n                    )\n                )\n                \n                sampleChats.forEach { chat ->\n                    chatRepository.createOrUpdateChat(chat)\n                }\n                \n                println(\"✅ Sample chats added for user: $currentUserId\")\n                println(\"\uD83D\uDD0D Try searching for: 'Ahmed', 'meeting', 'help', 'coffee'\")\n            } catch (e: Exception) {\n                println(\"❌ Error adding sample chats: ${e.message}\")\n            }\n        }\n    }\n}
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/main/java/com/chat/app/ui/home/HomeScreenViewModel.kt b/app/src/main/java/com/chat/app/ui/home/HomeScreenViewModel.kt
+--- a/app/src/main/java/com/chat/app/ui/home/HomeScreenViewModel.kt	(revision 6e2d43c3809d3c9bc90f507810cf5749a51abbc3)
++++ b/app/src/main/java/com/chat/app/ui/home/HomeScreenViewModel.kt	(date 1765955271760)
+@@ -184,4 +184,4 @@
+             }
+         }
+     }
+-}
+\ No newline at end of file
++}
+Index: app/src/main/java/com/chat/app/data/local/entities/ChatEntity.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package com.chat.app.data.local.entities\n\nimport androidx.room.Entity\nimport androidx.room.Index\nimport androidx.room.PrimaryKey\n\n@Entity(tableName = \"chats\",\n        indices = [Index(value = [\"timestamp\"])]\n)\n\ndata class ChatEntity(\n    @PrimaryKey\n    val chatId: String,\n    val otherUserId: String,\n    val lastMessage: String? = null,\n    val timestamp: Long = System.currentTimeMillis()\n\n)
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/main/java/com/chat/app/data/local/entities/ChatEntity.kt b/app/src/main/java/com/chat/app/data/local/entities/ChatEntity.kt
+--- a/app/src/main/java/com/chat/app/data/local/entities/ChatEntity.kt	(revision 6e2d43c3809d3c9bc90f507810cf5749a51abbc3)
++++ b/app/src/main/java/com/chat/app/data/local/entities/ChatEntity.kt	(date 1765955271768)
+@@ -15,4 +15,4 @@
+     val lastMessage: String? = null,
+     val timestamp: Long = System.currentTimeMillis()
+ 
+-)
+\ No newline at end of file
++)
+Index: app/src/main/java/com/chat/app/data/repository/ChatRepository.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package com.chat.app.data.repository\n\nimport com.chat.app.data.local.dao.ChatDao\nimport com.chat.app.data.local.entities.ChatEntity\nimport kotlinx.coroutines.flow.Flow\n\nclass ChatRepository(\n    private val chatDao: ChatDao\n) {\n\n    val allChats: Flow<List<ChatEntity>> = chatDao.getAllChats()\n\n    suspend fun createOrUpdateChat(chat: ChatEntity) {\n        chatDao.insertChat(chat)\n    }\n\n    suspend fun getChat(chatId: String): ChatEntity? {\n        return chatDao.getChatById(chatId)\n    }\n    \n    // \uD83D\uDD25 NEW: User-specific methods\n    fun getChatsForUser(userId: String): Flow<List<ChatEntity>> {\n        return chatDao.getChatsForUser(userId)\n    }\n    \n    fun searchChatsForUser(userId: String, searchQuery: String): Flow<List<ChatEntity>> {\n        return chatDao.searchChatsForUser(userId, searchQuery)\n    }\n}
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/main/java/com/chat/app/data/repository/ChatRepository.kt b/app/src/main/java/com/chat/app/data/repository/ChatRepository.kt
+--- a/app/src/main/java/com/chat/app/data/repository/ChatRepository.kt	(revision 6e2d43c3809d3c9bc90f507810cf5749a51abbc3)
++++ b/app/src/main/java/com/chat/app/data/repository/ChatRepository.kt	(date 1765955271775)
+@@ -26,4 +26,4 @@
+     fun searchChatsForUser(userId: String, searchQuery: String): Flow<List<ChatEntity>> {
+         return chatDao.searchChatsForUser(userId, searchQuery)
+     }
+-}
+\ No newline at end of file
++}
+Index: app/src/main/java/com/chat/app/data/local/dao/ChatDao.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package com.chat.app.data.local.dao\n\nimport androidx.room.Dao\nimport androidx.room.Insert\nimport androidx.room.OnConflictStrategy\nimport androidx.room.Query\nimport com.chat.app.data.local.entities.ChatEntity\nimport kotlinx.coroutines.flow.Flow\n\n@Dao\ninterface ChatDao {\n    @Insert(onConflict = OnConflictStrategy.REPLACE)\n    suspend fun insertChat(chat: ChatEntity)\n\n    @Query(\"SELECT * FROM chats ORDER BY timestamp DESC\")\n    fun getAllChats(): Flow<List<ChatEntity>>\n\n    @Query(\"SELECT * FROM chats WHERE chatId = :chatId\")\n    suspend fun getChatById(chatId: String): ChatEntity?\n    \n    // \uD83D\uDD25 NEW: User-specific chat queries\n    @Query(\"SELECT * FROM chats WHERE chatId LIKE '%' || :userId || '%' ORDER BY timestamp DESC\")\n    fun getChatsForUser(userId: String): Flow<List<ChatEntity>>\n    \n    @Query(\"SELECT * FROM chats WHERE (chatId LIKE '%' || :userId || '%') AND (otherUserId LIKE '%' || :searchQuery || '%' OR lastMessage LIKE '%' || :searchQuery || '%') ORDER BY timestamp DESC\")\n    fun searchChatsForUser(userId: String, searchQuery: String): Flow<List<ChatEntity>>\n}
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/main/java/com/chat/app/data/local/dao/ChatDao.kt b/app/src/main/java/com/chat/app/data/local/dao/ChatDao.kt
+--- a/app/src/main/java/com/chat/app/data/local/dao/ChatDao.kt	(revision 6e2d43c3809d3c9bc90f507810cf5749a51abbc3)
++++ b/app/src/main/java/com/chat/app/data/local/dao/ChatDao.kt	(date 1765955271782)
+@@ -24,4 +24,4 @@
+     
+     @Query("SELECT * FROM chats WHERE (chatId LIKE '%' || :userId || '%') AND (otherUserId LIKE '%' || :searchQuery || '%' OR lastMessage LIKE '%' || :searchQuery || '%') ORDER BY timestamp DESC")
+     fun searchChatsForUser(userId: String, searchQuery: String): Flow<List<ChatEntity>>
+-}
+\ No newline at end of file
++}
+Index: app/src/main/java/com/chat/app/ui/chatdetails/ChatDetailsViewModel.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package com.chat.app.ui.chatdetails\n\nimport androidx.lifecycle.ViewModel\nimport androidx.lifecycle.viewModelScope\nimport com.chat.app.data.local.entities.ChatEntity\nimport com.chat.app.data.local.entities.MessageEntity\nimport com.chat.app.data.local.entities.UserEntity\nimport com.chat.app.data.repository.AuthRepository\nimport com.chat.app.data.repository.ChatRepository\nimport com.chat.app.data.repository.MessageRepository\nimport com.chat.app.data.repository.UserRepository\nimport dagger.hilt.android.lifecycle.HiltViewModel\nimport kotlinx.coroutines.flow.*\nimport kotlinx.coroutines.launch\nimport java.text.SimpleDateFormat\nimport java.util.*\nimport javax.inject.Inject\n\n/**\n * UI State for ChatDetailsScreen\n */\ndata class ChatDetailsUiState(\n    val messages: List<MessageEntity> = emptyList(),\n    val isLoading: Boolean = false,\n    val errorMessage: String? = null,\n    val chatId: String = \"\",\n    val otherUserName: String = \"\",\n    val inputText: String = \"\"\n) {\n    // Helper properties for UI logic\n    val shouldShowLoading: Boolean get() = isLoading && messages.isEmpty()\n    val shouldShowEmpty: Boolean get() = !isLoading && messages.isEmpty() && errorMessage == null\n    val shouldShowMessages: Boolean get() = !isLoading && messages.isNotEmpty()\n}\n\n@HiltViewModel\nclass ChatDetailsViewModel @Inject constructor(\n    private val chatRepository: ChatRepository,\n    private val messageRepository: MessageRepository,\n    private val userRepository: UserRepository,\n    private val authRepository: AuthRepository\n): ViewModel() {\n    \n    // Private mutable state\n    private val _uiState = MutableStateFlow(ChatDetailsUiState())\n    // Public read-only state\n    val uiState = _uiState.asStateFlow()\n    \n    private val timeFormatter = SimpleDateFormat(\"hh:mm a\", Locale.getDefault())\n    private var currentUserId: String = \"\"\n    \n    /**\n     * Initialize chat with parameters - call this from the UI\n     */\n    fun initializeChat(chatId: String, otherUserName: String, otherUserId: String) {\n        currentUserId = authRepository.getCurrentUserId() ?: \"current_user\"\n        \n        _uiState.value = _uiState.value.copy(\n            chatId = chatId,\n            otherUserName = otherUserName\n        )\n        \n        // \uD83D\uDD25 Step 1: Save the other user locally and create/update the chat\n        initializeChatData(chatId, otherUserName, otherUserId)\n        // \uD83D\uDD25 Step 2: Load messages from local DB\n        loadMessages(chatId)\n        // \uD83D\uDD25 Step 3: Start syncing with Firebase (CRITICAL)\n        startMessageSyncing(chatId)\n    }\n    \n    /**\n     * \uD83D\uDD25 Initialize chat: Save user locally and create/update chat entity\n     * This follows the \"Starting a Chat\" logic from the documentation\n     */\n    private fun initializeChatData(chatId: String, otherUserName: String, otherUserId: String) {\n        viewModelScope.launch {\n            try {\n                // Step A.1: Save the other user locally\n                val otherUser = UserEntity(\n                    uid = otherUserId,\n                    fullName = otherUserName,\n                    phoneNumber = otherUserId  // Using uid as phone number\n                )\n                userRepository.saveUserLocally(otherUser)\n                println(\"✅ Saved user locally: $otherUserName ($otherUserId)\")\n                \n                // Step A.2: Create or update the chat\n                val chat = ChatEntity(\n                    chatId = chatId,\n                    otherUserId = otherUserId,\n                    lastMessage = null,\n                    timestamp = System.currentTimeMillis()\n                )\n                chatRepository.createOrUpdateChat(chat)\n                println(\"✅ Created/updated chat: $chatId\")\n                \n            } catch (e: Exception) {\n                println(\"❌ Error initializing chat: ${e.message}\")\n            }\n        }\n    }\n    \n    /**\n     * Load messages for this chat from repository\n     */\n    private fun loadMessages(chatId: String) {\n        viewModelScope.launch {\n            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)\n            \n            try {\n                messageRepository.getMessages(chatId)\n                    .catch { exception ->\n                        _uiState.value = _uiState.value.copy(\n                            isLoading = false,\n                            errorMessage = exception.message\n                        )\n                    }\n                    .collect { messageList ->\n                        _uiState.value = _uiState.value.copy(\n                            messages = messageList.sortedBy { it.timestamp }, // Sort by timestamp\n                            isLoading = false,\n                            errorMessage = null\n                        )\n                        println(\"\uD83D\uDCF1 Loaded ${messageList.size} messages for chat: $chatId\")\n                    }\n            } catch (e: Exception) {\n                _uiState.value = _uiState.value.copy(\n                    isLoading = false,\n                    errorMessage = e.message ?: \"Failed to load messages\"\n                )\n                println(\"❌ Error loading messages: ${e.message}\")\n            }\n        }\n    }\n    \n    /**\n     * Start syncing messages with Firebase\n     */\n    private fun startMessageSyncing(chatId: String) {\n        try {\n            messageRepository.startSyncing(chatId)\n            println(\"\uD83D\uDD04 Started message syncing for chat: $chatId\")\n        } catch (e: Exception) {\n            println(\"❌ Error starting message sync: ${e.message}\")\n        }\n    }\n    \n    /**\n     * Send a new message\n     */\n    fun sendMessage(content: String) {\n        if (content.isBlank()) return\n        \n        val chatId = _uiState.value.chatId\n        if (chatId.isEmpty()) {\n            println(\"❌ Cannot send message: chatId is empty\")\n            return\n        }\n        \n        viewModelScope.launch {\n            try {\n                // Send message via repository (follows Single Source of Truth pattern)\n                messageRepository.sendMessage(chatId, content.trim())\n                \n                // Clear input text\n                _uiState.value = _uiState.value.copy(inputText = \"\")\n                \n                println(\"\uD83D\uDCE4 Message sent: $content\")\n            } catch (e: Exception) {\n                _uiState.value = _uiState.value.copy(\n                    errorMessage = \"Failed to send message: ${e.message}\"\n                )\n                println(\"❌ Error sending message: ${e.message}\")\n            }\n        }\n    }\n    \n    /**\n     * Update input text\n     */\n    fun updateInputText(text: String) {\n        _uiState.value = _uiState.value.copy(inputText = text)\n    }\n    \n    /**\n     * Clear error message\n     */\n    fun clearError() {\n        _uiState.value = _uiState.value.copy(errorMessage = null)\n    }\n    \n    /**\n     * Add sample messages for testing\n     */\n    fun addSampleMessages() {\n        val chatId = _uiState.value.chatId\n        if (chatId.isEmpty()) return\n        \n        viewModelScope.launch {\n            try {\n                val sampleMessages = listOf(\n                    \"Hello! How are you doing?\",\n                    \"I'm good, thanks for asking!\",\n                    \"What are you up to today?\",\n                    \"Just working on some projects. You?\",\n                    \"Same here! Let's catch up soon.\"\n                )\n                \n                sampleMessages.forEachIndexed { index, content ->\n                    kotlinx.coroutines.delay(100) // Small delay between messages\n                    messageRepository.sendMessage(chatId, content)\n                }\n                \n                println(\"✅ Sample messages added for chat: $chatId\")\n            } catch (e: Exception) {\n                println(\"❌ Error adding sample messages: ${e.message}\")\n            }\n        }\n    }\n    \n    /**\n     * Format timestamp for display\n     */\n    fun formatMessageTime(timestamp: Long): String {\n        return timeFormatter.format(Date(timestamp))\n    }\n}
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/main/java/com/chat/app/ui/chatdetails/ChatDetailsViewModel.kt b/app/src/main/java/com/chat/app/ui/chatdetails/ChatDetailsViewModel.kt
+--- a/app/src/main/java/com/chat/app/ui/chatdetails/ChatDetailsViewModel.kt	(revision 6e2d43c3809d3c9bc90f507810cf5749a51abbc3)
++++ b/app/src/main/java/com/chat/app/ui/chatdetails/ChatDetailsViewModel.kt	(date 1765955271791)
+@@ -224,4 +224,4 @@
+     fun formatMessageTime(timestamp: Long): String {
+         return timeFormatter.format(Date(timestamp))
+     }
+-}
+\ No newline at end of file
++}
+Index: app/src/main/java/com/chat/app/data/repository/MessageRepository.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package com.chat.app.data.repository\n\nimport android.content.Context\nimport com.chat.app.data.local.AppDatabase\nimport com.chat.app.data.local.entities.MessageEntity\nimport com.chat.app.data.remote.firebase.FirebaseAuthManager\nimport com.chat.app.data.remote.firebase.FirebaseChatService\nimport com.chat.app.data.remote.firebase.NetworkMessage\nimport kotlinx.coroutines.CoroutineScope\nimport kotlinx.coroutines.Dispatchers\nimport kotlinx.coroutines.flow.Flow\nimport kotlinx.coroutines.launch\nimport java.util.UUID\n\nclass MessageRepository(context: Context) {\n    private val messageDao = AppDatabase.getDatabase(context).messageDao()\n    private val firebaseService = FirebaseChatService()\n    private val authManager = FirebaseAuthManager()\n    private val currentUserId = authManager.currentUserId ?: \"\"\n\n    fun getMessages(chatId: String): Flow<List<MessageEntity>> {\n        return messageDao.getMessagesForChat(chatId)\n    }\n\n    suspend fun sendMessage(chatId: String, content: String) {\n        val messageId = UUID.randomUUID().toString()\n        val timestamp = System.currentTimeMillis()\n\n        val netMessage = NetworkMessage(\n            id = messageId,\n            senderId = currentUserId,\n            content = content,\n            timestamp = timestamp\n        )\n\n        firebaseService.sendMessage(chatId, netMessage)\n    }\n\n\n    fun startSyncing(chatId: String) {\n        CoroutineScope(Dispatchers.IO).launch {\n            firebaseService.listenToMessages(chatId).collect { networkMessages ->\n                val entities = networkMessages.map { netMsg ->\n                    MessageEntity(\n                        messageId = netMsg.id,\n                        chatId = chatId,\n                        senderId = netMsg.senderId,\n                        content = netMsg.content,\n                        timestamp = netMsg.timestamp,\n                        isFromMe = (netMsg.senderId == currentUserId)\n                    )\n                }\n                entities.forEach { messageDao.insertMessage(it) }\n            }\n        }\n    }\n}
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/main/java/com/chat/app/data/repository/MessageRepository.kt b/app/src/main/java/com/chat/app/data/repository/MessageRepository.kt
+--- a/app/src/main/java/com/chat/app/data/repository/MessageRepository.kt	(revision 6e2d43c3809d3c9bc90f507810cf5749a51abbc3)
++++ b/app/src/main/java/com/chat/app/data/repository/MessageRepository.kt	(date 1765955271799)
+@@ -54,4 +54,4 @@
+             }
+         }
+     }
+-}
+\ No newline at end of file
++}
+Index: app/src/test/java/com/chat/app/ui/contacts/ContactsViewModelTest.kt
+===================================================================
+diff --git a/app/src/test/java/com/chat/app/ui/contacts/ContactsViewModelTest.kt b/app/src/test/java/com/chat/app/ui/contacts/ContactsViewModelTest.kt
+deleted file mode 100644
+--- a/app/src/test/java/com/chat/app/ui/contacts/ContactsViewModelTest.kt	(revision 6e2d43c3809d3c9bc90f507810cf5749a51abbc3)
++++ /dev/null	(revision 6e2d43c3809d3c9bc90f507810cf5749a51abbc3)
+@@ -1,350 +0,0 @@
+-package com.chat.app.ui.contacts
+-
+-import app.cash.turbine.test
+-import com.chat.app.data.local.entities.ChatEntity
+-import com.chat.app.data.local.entities.UserEntity
+-import com.chat.app.data.repository.ChatRepository
+-import com.chat.app.data.repository.ContactsRepository
+-import com.chat.app.data.repository.UserRepository
+-import io.mockk.coEvery
+-import io.mockk.coVerify
+-import io.mockk.mockk
+-import io.mockk.slot
+-import kotlinx.coroutines.Dispatchers
+-import kotlinx.coroutines.ExperimentalCoroutinesApi
+-import kotlinx.coroutines.test.StandardTestDispatcher
+-import kotlinx.coroutines.test.resetMain
+-import kotlinx.coroutines.test.runTest
+-import kotlinx.coroutines.test.setMain
+-import org.junit.After
+-import org.junit.Before
+-import org.junit.Test
+-import kotlin.test.assertEquals
+-import kotlin.test.assertFalse
+-import kotlin.test.assertTrue
+-
+-@OptIn(ExperimentalCoroutinesApi::class)
+-class ContactsViewModelTest {
+-
+-    private lateinit var viewModel: ContactsViewModel
+-    private lateinit var contactsRepository: ContactsRepository
+-    private lateinit var userRepository: UserRepository
+-    private lateinit var chatRepository: ChatRepository
+-    private val testDispatcher = StandardTestDispatcher()
+-
+-    @Before
+-    fun setup() {
+-        Dispatchers.setMain(testDispatcher)
+-        contactsRepository = mockk()
+-        userRepository = mockk()
+-        chatRepository = mockk()
+-        viewModel = ContactsViewModel(contactsRepository, userRepository, chatRepository)
+-    }
+-
+-    @After
+-    fun tearDown() {
+-        Dispatchers.resetMain()
+-    }
+-
+-    @Test
+-    fun `loadContacts should update UI state with contacts from repository`() = runTest {
+-        // Given
+-        val mockContacts = listOf(
+-            UserEntity("1", "Alice Johnson", "+1234567890"),
+-            UserEntity("2", "Bob Smith", "+1234567891")
+-        )
+-        coEvery { contactsRepository.getDeviceContacts() } returns mockContacts
+-
+-        // When
+-        viewModel.loadContacts()
+-        testDispatcher.scheduler.advanceUntilIdle()
+-
+-        // Then
+-        viewModel.uiState.test {
+-            val state = awaitItem()
+-            assertFalse(state.isLoading)
+-            assertEquals(2, state.contacts.size)
+-            assertEquals("Alice Johnson", state.contacts[0].name)
+-            assertEquals("Bob Smith", state.contacts[1].name)
+-        }
+-    }
+-
+-    @Test
+-    fun `loadContacts should show loading state initially`() = runTest {
+-        // Given
+-        coEvery { contactsRepository.getDeviceContacts() } returns emptyList()
+-
+-        // When
+-        viewModel.loadContacts()
+-
+-        // Then
+-        viewModel.uiState.test {
+-            val state = awaitItem()
+-            assertTrue(state.isLoading)
+-        }
+-    }
+-
+-    @Test
+-    fun `loadContacts should handle repository error`() = runTest {
+-        // Given
+-        val errorMessage = "Failed to read contacts"
+-        coEvery { contactsRepository.getDeviceContacts() } throws Exception(errorMessage)
+-
+-        // When
+-        viewModel.loadContacts()
+-        testDispatcher.scheduler.advanceUntilIdle()
+-
+-        // Then
+-        viewModel.uiState.test {
+-            val state = awaitItem()
+-            assertFalse(state.isLoading)
+-            assertTrue(state.errorMessage?.contains(errorMessage) == true)
+-            assertTrue(state.contacts.isEmpty())
+-        }
+-    }
+-
+-    @Test
+-    fun `refreshContacts should call loadContacts`() = runTest {
+-        // Given
+-        coEvery { contactsRepository.getDeviceContacts() } returns emptyList()
+-
+-        // When
+-        viewModel.refreshContacts()
+-        testDispatcher.scheduler.advanceUntilIdle()
+-
+-        // Then
+-        coVerify { contactsRepository.getDeviceContacts() }
+-    }
+-
+-    @Test
+-    fun `clearErrorMessage should remove error from UI state`() = runTest {
+-        // Given
+-        coEvery { contactsRepository.getDeviceContacts() } throws Exception("Error")
+-        viewModel.loadContacts()
+-        testDispatcher.scheduler.advanceUntilIdle()
+-
+-        // When
+-        viewModel.clearErrorMessage()
+-
+-        // Then
+-        viewModel.uiState.test {
+-            val state = awaitItem()
+-            assertEquals(null, state.errorMessage)
+-        }
+-    }
+-
+-    @Test
+-    fun `searchContacts should filter contacts by name`() = runTest {
+-        // Given
+-        val mockContacts = listOf(
+-            UserEntity("1", "Alice Johnson", "+1234567890"),
+-            UserEntity("2", "Bob Smith", "+1234567891"),
+-            UserEntity("3", "Charlie Brown", "+1234567892")
+-        )
+-        coEvery { contactsRepository.getDeviceContacts() } returns mockContacts
+-        
+-        // Load contacts first
+-        viewModel.loadContacts()
+-        testDispatcher.scheduler.advanceUntilIdle()
+-
+-        // When
+-        viewModel.searchContacts("Alice")
+-        testDispatcher.scheduler.advanceUntilIdle()
+-
+-        // Then
+-        viewModel.uiState.test {
+-            val state = awaitItem()
+-            assertEquals(1, state.contacts.size)
+-            assertEquals("Alice Johnson", state.contacts[0].name)
+-            assertEquals("Alice", state.searchQuery)
+-        }
+-    }
+-
+-    @Test
+-    fun `searchContacts should filter contacts by phone number`() = runTest {
+-        // Given
+-        val mockContacts = listOf(
+-            UserEntity("1", "Alice Johnson", "+1234567890"),
+-            UserEntity("2", "Bob Smith", "+1234567891")
+-        )
+-        coEvery { contactsRepository.getDeviceContacts() } returns mockContacts
+-        
+-        // Load contacts first
+-        viewModel.loadContacts()
+-        testDispatcher.scheduler.advanceUntilIdle()
+-
+-        // When
+-        viewModel.searchContacts("890")
+-        testDispatcher.scheduler.advanceUntilIdle()
+-
+-        // Then
+-        viewModel.uiState.test {
+-            val state = awaitItem()
+-            assertEquals(1, state.contacts.size)
+-            assertEquals("Alice Johnson", state.contacts[0].name)
+-        }
+-    }
+-
+-    @Test
+-    fun `searchContacts with empty query should reload all contacts`() = runTest {
+-        // Given
+-        val mockContacts = listOf(
+-            UserEntity("1", "Alice Johnson", "+1234567890"),
+-            UserEntity("2", "Bob Smith", "+1234567891")
+-        )
+-        coEvery { contactsRepository.getDeviceContacts() } returns mockContacts
+-
+-        // When
+-        viewModel.searchContacts("")
+-        testDispatcher.scheduler.advanceUntilIdle()
+-
+-        // Then
+-        viewModel.uiState.test {
+-            val state = awaitItem()
+-            assertEquals(2, state.contacts.size)
+-        }
+-    }
+-
+-    @Test
+-    fun `clearSearch should reset search query and reload contacts`() = runTest {
+-        // Given
+-        val mockContacts = listOf(
+-            UserEntity("1", "Alice Johnson", "+1234567890"),
+-            UserEntity("2", "Bob Smith", "+1234567891")
+-        )
+-        coEvery { contactsRepository.getDeviceContacts() } returns mockContacts
+-
+-        // When
+-        viewModel.clearSearch()
+-        testDispatcher.scheduler.advanceUntilIdle()
+-
+-        // Then
+-        viewModel.uiState.test {
+-            val state = awaitItem()
+-            assertEquals("", state.searchQuery)
+-            assertEquals(2, state.contacts.size)
+-        }
+-    }
+-
+-    @Test
+-    fun `contacts should be sorted by name`() = runTest {
+-        // Given
+-        val mockContacts = listOf(
+-            UserEntity("1", "Charlie Brown", "+1234567892"),
+-            UserEntity("2", "Alice Johnson", "+1234567890"),
+-            UserEntity("3", "Bob Smith", "+1234567891")
+-        )
+-        coEvery { contactsRepository.getDeviceContacts() } returns mockContacts
+-
+-        // When
+-        viewModel.loadContacts()
+-        testDispatcher.scheduler.advanceUntilIdle()
+-
+-        // Then
+-        viewModel.uiState.test {
+-            val state = awaitItem()
+-            assertEquals("Alice Johnson", state.contacts[0].name)
+-            assertEquals("Bob Smith", state.contacts[1].name)
+-            assertEquals("Charlie Brown", state.contacts[2].name)
+-        }
+-    }
+-
+-    @Test
+-    fun `search should be case insensitive`() = runTest {
+-        // Given
+-        val mockContacts = listOf(
+-            UserEntity("1", "Alice Johnson", "+1234567890"),
+-            UserEntity("2", "Bob Smith", "+1234567891")
+-        )
+-        coEvery { contactsRepository.getDeviceContacts() } returns mockContacts
+-        
+-        // Load contacts first
+-        viewModel.loadContacts()
+-        testDispatcher.scheduler.advanceUntilIdle()
+-
+-        // When
+-        viewModel.searchContacts("alice")
+-        testDispatcher.scheduler.advanceUntilIdle()
+-
+-        // Then
+-        viewModel.uiState.test {
+-            val state = awaitItem()
+-            assertEquals(1, state.contacts.size)
+-            assertEquals("Alice Johnson", state.contacts[0].name)
+-        }
+-    }
+-
+-    @Test
+-    fun `onContactClick should save user locally and create new chat`() = runTest {
+-        // Given
+-        val contact = Contact("1", "Alice Johnson", "+1234567890", false)
+-        val userSlot = slot<UserEntity>()
+-        val chatSlot = slot<ChatEntity>()
+-        var callbackChatId = ""
+-
+-        coEvery { userRepository.saveUserLocally(capture(userSlot)) } returns Unit
+-        coEvery { chatRepository.getChat(any()) } returns null
+-        coEvery { chatRepository.createOrUpdateChat(capture(chatSlot)) } returns Unit
+-
+-        // When
+-        viewModel.onContactClick(contact) { chatId ->
+-            callbackChatId = chatId
+-        }
+-        testDispatcher.scheduler.advanceUntilIdle()
+-
+-        // Then
+-        coVerify { userRepository.saveUserLocally(any()) }
+-        coVerify { chatRepository.createOrUpdateChat(any()) }
+-        
+-        assertEquals("1", userSlot.captured.uid)
+-        assertEquals("Alice Johnson", userSlot.captured.fullName)
+-        assertEquals("+1234567890", userSlot.captured.phoneNumber)
+-        
+-        assertEquals("chat_1", chatSlot.captured.chatId)
+-        assertEquals("1", chatSlot.captured.otherUserId)
+-        assertEquals("chat_1", callbackChatId)
+-    }
+-
+-    @Test
+-    fun `onContactClick should update existing chat timestamp`() = runTest {
+-        // Given
+-        val contact = Contact("1", "Alice Johnson", "+1234567890", false)
+-        val existingChat = ChatEntity(
+-            chatId = "chat_1",
+-            otherUserId = "1",
+-            lastMessage = "Hello",
+-            timestamp = 1000L
+-        )
+-        val chatSlot = slot<ChatEntity>()
+-
+-        coEvery { userRepository.saveUserLocally(any()) } returns Unit
+-        coEvery { chatRepository.getChat("chat_1") } returns existingChat
+-        coEvery { chatRepository.createOrUpdateChat(capture(chatSlot)) } returns Unit
+-
+-        // When
+-        viewModel.onContactClick(contact) { }
+-        testDispatcher.scheduler.advanceUntilIdle()
+-
+-        // Then
+-        coVerify { chatRepository.createOrUpdateChat(any()) }
+-        assertTrue(chatSlot.captured.timestamp > 1000L)
+-        assertEquals("Hello", chatSlot.captured.lastMessage)
+-    }
+-
+-    @Test
+-    fun `onContactClick should handle repository error`() = runTest {
+-        // Given
+-        val contact = Contact("1", "Alice Johnson", "+1234567890", false)
+-        coEvery { userRepository.saveUserLocally(any()) } throws Exception("Database error")
+-
+-        // When
+-        viewModel.onContactClick(contact) { }
+-        testDispatcher.scheduler.advanceUntilIdle()
+-
+-        // Then
+-        viewModel.uiState.test {
+-            val state = awaitItem()
+-            assertTrue(state.errorMessage?.contains("Failed to start chat") == true)
+-        }
+-    }
+-}
+\ No newline at end of file
+Index: app/src/test/java/com/chat/app/ui/home/HomeScreenViewModelSimpleTest.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package com.chat.app.ui.home\n\nimport com.chat.app.data.local.entities.ChatEntity\nimport org.junit.Test\nimport org.junit.Assert.*\n\nclass HomeScreenViewModelSimpleTest {\n\n    // شوية داتا نجرب عليها - هتعمل الكلام ده برضو انت يحودا متقلقش ده بسيط\n    private val sampleChats = listOf(\n        ChatEntity(\n            chatId = \"chat_1\",\n            otherUserId = \"Ahmed Ali\",\n            lastMessage = \"Hey, how are you doing?\",\n            timestamp = System.currentTimeMillis() - 3600000\n        ),\n        ChatEntity(\n            chatId = \"chat_2\",\n            otherUserId = \"Mariam Hassan\",\n            lastMessage = \"Let's meet tomorrow for coffee\",\n            timestamp = System.currentTimeMillis() - 7200000\n        ),\n        ChatEntity(\n            chatId = \"chat_3\",\n            otherUserId = \"Omar Khaled\",\n            lastMessage = \"Thanks for your help!\",\n            timestamp = System.currentTimeMillis() - 86400000\n        )\n    )\n    @Test\n    fun `HomeUiState default values should be correct`() {\n        val state = HomeUiState()\n        \n        assertTrue(state.chats.isEmpty())\n        assertFalse(state.isLoading)\n        assertEquals(\"\", state.searchQuery)\n        assertFalse(state.isSearching)\n        assertNull(state.errorMessage)\n    }\n\n    @Test\n    fun `HomeUiState with custom values should be correct`() {\n        val state = HomeUiState(\n            chats = sampleChats,\n            isLoading = true,\n            searchQuery = \"test\",\n            isSearching = true,\n            errorMessage = \"error\"\n        )\n        assertEquals(sampleChats, state.chats)\n        assertTrue(state.isLoading)\n        assertEquals(\"test\", state.searchQuery)\n        assertTrue(state.isSearching)\n        assertEquals(\"error\", state.errorMessage)\n    }\n\n    // Loading\n    @Test\n    fun `shouldShowLoading should return true when loading and no chats`() {\n        val state = HomeUiState(\n            chats = emptyList(),\n            isLoading = true,\n            errorMessage = null\n        )\n        assertTrue(state.shouldShowLoading)\n        assertFalse(state.shouldShowEmpty)\n        assertFalse(state.shouldShowChats)\n    }\n\n    @Test\n    fun `shouldShowChats should return true when not loading and has chats`() {\n        val state = HomeUiState(\n            chats = sampleChats,\n            isLoading = false,\n            errorMessage = null\n        )\n        assertFalse(state.shouldShowLoading)\n        assertFalse(state.shouldShowEmpty)\n        assertTrue(state.shouldShowChats)\n    }\n\n    @Test\n    fun `shouldShowChats should return false when loading even with chats`() {\n        val state = HomeUiState(\n            chats = sampleChats,\n            isLoading = true,\n            errorMessage = null\n        )\n        assertFalse(state.shouldShowLoading) // Has chats\n        assertFalse(state.shouldShowEmpty)\n        assertFalse(state.shouldShowChats) // Still loading\n    }\n\n    @Test\n    fun `shouldShowChats should return false when no chats`() {\n        val state = HomeUiState(\n            chats = emptyList(),\n            isLoading = false,\n            errorMessage = null\n        )\n        assertFalse(state.shouldShowLoading)\n        assertTrue(state.shouldShowEmpty)\n        assertFalse(state.shouldShowChats) // No chats\n    }\n\n    @Test\n    fun `only shouldShowChats should be true when loaded with chats and no error`() {\n        val state = HomeUiState(\n            chats = sampleChats,\n            isLoading = false,\n            errorMessage = null\n        )\n        assertFalse(state.shouldShowLoading)\n        assertFalse(state.shouldShowEmpty)\n        assertTrue(state.shouldShowChats)\n    }\n\n    @Test\n    fun `manual search filtering should work correctly`() {\n        val searchQuery = \"Ahmed\"\n        val filteredChats = sampleChats.filter { chat ->\n            chat.otherUserId.contains(searchQuery, ignoreCase = true) ||\n            (chat.lastMessage?.contains(searchQuery, ignoreCase = true) == true)\n        }\n        assertEquals(1, filteredChats.size)\n        assertEquals(\"Ahmed Ali\", filteredChats.first().otherUserId)\n    }\n\n    @Test\n    fun `manual search filtering should be case insensitive`() {\n        val searchQuery = \"AHMED\"\n        val filteredChats = sampleChats.filter { chat ->\n            chat.otherUserId.contains(searchQuery, ignoreCase = true) ||\n            (chat.lastMessage?.contains(searchQuery, ignoreCase = true) == true)\n        }\n        assertEquals(1, filteredChats.size)\n        assertEquals(\"Ahmed Ali\", filteredChats.first().otherUserId)\n    }\n\n\n}
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/test/java/com/chat/app/ui/home/HomeScreenViewModelSimpleTest.kt b/app/src/test/java/com/chat/app/ui/home/HomeScreenViewModelSimpleTest.kt
+--- a/app/src/test/java/com/chat/app/ui/home/HomeScreenViewModelSimpleTest.kt	(revision 6e2d43c3809d3c9bc90f507810cf5749a51abbc3)
++++ b/app/src/test/java/com/chat/app/ui/home/HomeScreenViewModelSimpleTest.kt	(date 1765955271814)
+@@ -138,4 +138,4 @@
+     }
+ 
+ 
+-}
+\ No newline at end of file
++}
+Index: app/src/test/java/com/chat/app/ui/contacts/ContactsIntegrationTest.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package com.chat.app.ui.contacts\n\nimport app.cash.turbine.test\nimport com.chat.app.data.local.entities.ChatEntity\nimport com.chat.app.data.local.entities.UserEntity\nimport com.chat.app.data.repository.ChatRepository\nimport com.chat.app.data.repository.ContactsRepository\nimport com.chat.app.data.repository.UserRepository\nimport io.mockk.coEvery\nimport io.mockk.coVerify\nimport io.mockk.mockk\nimport io.mockk.slot\nimport kotlinx.coroutines.Dispatchers\nimport kotlinx.coroutines.ExperimentalCoroutinesApi\nimport kotlinx.coroutines.test.StandardTestDispatcher\nimport kotlinx.coroutines.test.resetMain\nimport kotlinx.coroutines.test.runTest\nimport kotlinx.coroutines.test.setMain\nimport org.junit.After\nimport org.junit.Before\nimport org.junit.Test\nimport kotlin.test.assertEquals\nimport kotlin.test.assertNotNull\nimport kotlin.test.assertTrue\n\n@OptIn(ExperimentalCoroutinesApi::class)\nclass ContactsIntegrationTest {\n\n    private lateinit var viewModel: ContactsViewModel\n    private lateinit var contactsRepository: ContactsRepository\n    private lateinit var userRepository: UserRepository\n    private lateinit var chatRepository: ChatRepository\n    private val testDispatcher = StandardTestDispatcher()\n\n    @Before\n    fun setup() {\n        Dispatchers.setMain(testDispatcher)\n        contactsRepository = mockk()\n        userRepository = mockk()\n        chatRepository = mockk()\n        viewModel = ContactsViewModel(contactsRepository, userRepository, chatRepository)\n    }\n\n    @After\n    fun tearDown() {\n        Dispatchers.resetMain()\n    }\n\n    @Test\n    fun `complete contact click flow should work correctly`() = runTest {\n        // Given\n        val contact = Contact(\"123\", \"John Doe\", \"+1234567890\", false)\n        val userSlot = slot<UserEntity>()\n        val chatSlot = slot<ChatEntity>()\n        var navigationChatId = \"\"\n\n        coEvery { userRepository.saveUserLocally(capture(userSlot)) } returns Unit\n        coEvery { chatRepository.getChat(any()) } returns null\n        coEvery { chatRepository.createOrUpdateChat(capture(chatSlot)) } returns Unit\n\n        // When\n        viewModel.onContactClick(contact) { chatId ->\n            navigationChatId = chatId\n        }\n        testDispatcher.scheduler.advanceUntilIdle()\n\n        // Then - Verify user was saved\n        coVerify { userRepository.saveUserLocally(any()) }\n        assertEquals(\"123\", userSlot.captured.uid)\n        assertEquals(\"John Doe\", userSlot.captured.fullName)\n        assertEquals(\"+1234567890\", userSlot.captured.phoneNumber)\n\n        // Then - Verify chat was created\n        coVerify { chatRepository.createOrUpdateChat(any()) }\n        assertEquals(\"chat_123\", chatSlot.captured.chatId)\n        assertEquals(\"123\", chatSlot.captured.otherUserId)\n\n        // Then - Verify navigation callback was called\n        assertEquals(\"chat_123\", navigationChatId)\n    }\n\n    @Test\n    fun `contact click with existing chat should update timestamp`() = runTest {\n        // Given\n        val contact = Contact(\"456\", \"Jane Smith\", \"+0987654321\", true)\n        val existingChat = ChatEntity(\n            chatId = \"chat_456\",\n            otherUserId = \"456\",\n            lastMessage = \"Previous message\",\n            timestamp = 1000L\n        )\n        val chatSlot = slot<ChatEntity>()\n\n        coEvery { userRepository.saveUserLocally(any()) } returns Unit\n        coEvery { chatRepository.getChat(\"chat_456\") } returns existingChat\n        coEvery { chatRepository.createOrUpdateChat(capture(chatSlot)) } returns Unit\n\n        // When\n        viewModel.onContactClick(contact) { }\n        testDispatcher.scheduler.advanceUntilIdle()\n\n        // Then\n        assertTrue(chatSlot.captured.timestamp > 1000L)\n        assertEquals(\"Previous message\", chatSlot.captured.lastMessage)\n        assertEquals(\"456\", chatSlot.captured.otherUserId)\n    }\n\n    @Test\n    fun `load contacts and click flow integration`() = runTest {\n        // Given\n        val deviceContacts = listOf(\n            UserEntity(\"1\", \"Alice Johnson\", \"+1111111111\"),\n            UserEntity(\"2\", \"Bob Smith\", \"+2222222222\")\n        )\n        \n        coEvery { contactsRepository.getDeviceContacts() } returns deviceContacts\n        coEvery { userRepository.saveUserLocally(any()) } returns Unit\n        coEvery { chatRepository.getChat(any()) } returns null\n        coEvery { chatRepository.createOrUpdateChat(any()) } returns Unit\n\n        // When - Load contacts\n        viewModel.loadContacts()\n        testDispatcher.scheduler.advanceUntilIdle()\n\n        // Then - Verify contacts are loaded\n        viewModel.uiState.test {\n            val state = awaitItem()\n            assertEquals(2, state.contacts.size)\n            assertEquals(\"Alice Johnson\", state.contacts[0].name)\n            assertEquals(\"Bob Smith\", state.contacts[1].name)\n        }\n\n        // When - Click on first contact\n        var clickedChatId = \"\"\n        val firstContact = Contact(\"1\", \"Alice Johnson\", \"+1111111111\", false)\n        viewModel.onContactClick(firstContact) { chatId ->\n            clickedChatId = chatId\n        }\n        testDispatcher.scheduler.advanceUntilIdle()\n\n        // Then - Verify chat creation\n        assertEquals(\"chat_1\", clickedChatId)\n        coVerify { userRepository.saveUserLocally(any()) }\n        coVerify { chatRepository.createOrUpdateChat(any()) }\n    }\n\n    @Test\n    fun `search and click integration should work`() = runTest {\n        // Given\n        val deviceContacts = listOf(\n            UserEntity(\"1\", \"Alice Johnson\", \"+1111111111\"),\n            UserEntity(\"2\", \"Bob Smith\", \"+2222222222\"),\n            UserEntity(\"3\", \"Charlie Brown\", \"+3333333333\")\n        )\n        \n        coEvery { contactsRepository.getDeviceContacts() } returns deviceContacts\n        coEvery { userRepository.saveUserLocally(any()) } returns Unit\n        coEvery { chatRepository.getChat(any()) } returns null\n        coEvery { chatRepository.createOrUpdateChat(any()) } returns Unit\n\n        // When - Load and search\n        viewModel.loadContacts()\n        testDispatcher.scheduler.advanceUntilIdle()\n        \n        viewModel.searchContacts(\"Alice\")\n        testDispatcher.scheduler.advanceUntilIdle()\n\n        // Then - Verify search results\n        viewModel.uiState.test {\n            val state = awaitItem()\n            assertEquals(1, state.contacts.size)\n            assertEquals(\"Alice Johnson\", state.contacts[0].name)\n        }\n\n        // When - Click on search result\n        var searchClickChatId = \"\"\n        val searchResult = Contact(\"1\", \"Alice Johnson\", \"+1111111111\", false)\n        viewModel.onContactClick(searchResult) { chatId ->\n            searchClickChatId = chatId\n        }\n        testDispatcher.scheduler.advanceUntilIdle()\n\n        // Then - Verify chat creation from search result\n        assertEquals(\"chat_1\", searchClickChatId)\n    }\n}
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/test/java/com/chat/app/ui/contacts/ContactsIntegrationTest.kt b/app/src/test/java/com/chat/app/ui/contacts/ContactsIntegrationTest.kt
+--- a/app/src/test/java/com/chat/app/ui/contacts/ContactsIntegrationTest.kt	(revision 6e2d43c3809d3c9bc90f507810cf5749a51abbc3)
++++ b/app/src/test/java/com/chat/app/ui/contacts/ContactsIntegrationTest.kt	(date 1765955271821)
+@@ -55,7 +55,7 @@
+         var navigationChatId = ""
+ 
+         coEvery { userRepository.saveUserLocally(capture(userSlot)) } returns Unit
+-        coEvery { chatRepository.getChat(any()) } returns null
++        coEvery { chatRepository.getChat(any(), any()) } returns null
+         coEvery { chatRepository.createOrUpdateChat(capture(chatSlot)) } returns Unit
+ 
+         // When
+@@ -83,8 +83,11 @@
+     fun `contact click with existing chat should update timestamp`() = runTest {
+         // Given
+         val contact = Contact("456", "Jane Smith", "+0987654321", true)
++        val testUserId = "test_user"
+         val existingChat = ChatEntity(
+             chatId = "chat_456",
++            ownerUserId = testUserId,
++            participantIds = "$testUserId,456",
+             otherUserId = "456",
+             lastMessage = "Previous message",
+             timestamp = 1000L
+@@ -92,7 +95,7 @@
+         val chatSlot = slot<ChatEntity>()
+ 
+         coEvery { userRepository.saveUserLocally(any()) } returns Unit
+-        coEvery { chatRepository.getChat("chat_456") } returns existingChat
++        coEvery { chatRepository.getChat("chat_456", any()) } returns existingChat
+         coEvery { chatRepository.createOrUpdateChat(capture(chatSlot)) } returns Unit
+ 
+         // When
+@@ -115,7 +118,7 @@
+         
+         coEvery { contactsRepository.getDeviceContacts() } returns deviceContacts
+         coEvery { userRepository.saveUserLocally(any()) } returns Unit
+-        coEvery { chatRepository.getChat(any()) } returns null
++        coEvery { chatRepository.getChat(any(), any()) } returns null
+         coEvery { chatRepository.createOrUpdateChat(any()) } returns Unit
+ 
+         // When - Load contacts
+@@ -155,7 +158,7 @@
+         
+         coEvery { contactsRepository.getDeviceContacts() } returns deviceContacts
+         coEvery { userRepository.saveUserLocally(any()) } returns Unit
+-        coEvery { chatRepository.getChat(any()) } returns null
++        coEvery { chatRepository.getChat(any(), any()) } returns null
+         coEvery { chatRepository.createOrUpdateChat(any()) } returns Unit
+ 
+         // When - Load and search
+Index: .idea/deploymentTargetSelector.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+><?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<project version=\"4\">\n  <component name=\"deploymentTargetSelector\">\n    <selectionStates>\n      <SelectionState runConfigName=\"app\">\n        <option name=\"selectionMode\" value=\"DROPDOWN\" />\n        <DropdownSelection timestamp=\"2025-12-14T23:28:00.592324907Z\">\n          <Target type=\"DEFAULT_BOOT\">\n            <handle>\n              <DeviceId pluginId=\"PhysicalDevice\" identifier=\"serial=R9KX7010R5D\" />\n            </handle>\n          </Target>\n        </DropdownSelection>\n        <DialogSelection />\n      </SelectionState>\n    </selectionStates>\n  </component>\n</project>
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/deploymentTargetSelector.xml b/.idea/deploymentTargetSelector.xml
+--- a/.idea/deploymentTargetSelector.xml	(revision 6e2d43c3809d3c9bc90f507810cf5749a51abbc3)
++++ b/.idea/deploymentTargetSelector.xml	(date 1765955271832)
+@@ -4,7 +4,7 @@
+     <selectionStates>
+       <SelectionState runConfigName="app">
+         <option name="selectionMode" value="DROPDOWN" />
+-        <DropdownSelection timestamp="2025-12-14T23:28:00.592324907Z">
++        <DropdownSelection timestamp="2025-12-15T02:36:30.423481360Z">
+           <Target type="DEFAULT_BOOT">
+             <handle>
+               <DeviceId pluginId="PhysicalDevice" identifier="serial=R9KX7010R5D" />

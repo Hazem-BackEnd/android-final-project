@@ -1,5 +1,6 @@
 package com.chat.app.ui.home
 
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -274,8 +275,10 @@ fun HomeScreen(
                                     chatEntity = chatEntity,
                                     onChatClick = { chatId ->
                                         viewModel.onChatClicked(chatId)
-                                        // Navigate to chat details with chatId and otherUserName
-                                        navController?.navigate("chat_detail/${chatEntity.chatId}/${chatEntity.otherUserId}")
+                                        // Navigate to chat details with otherUserId and otherUserName
+                                        // TODO: Get actual display name from UserRepository
+                                        val encodedUserId = Uri.encode(chatEntity.otherUserId)
+                                        navController?.navigate("${Routes.CHAT_DETAIL}/${chatEntity.otherUserId}/$encodedUserId")
                                     }
                                 )
                             }

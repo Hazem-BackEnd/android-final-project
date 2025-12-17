@@ -36,11 +36,11 @@ fun AppNavigation() {
         composable(Routes.HOME) {
             HomeScreen(navController)
         }
-        composable("chat_detail/{chatId}/{otherUserName}") { backStackEntry ->
-            val chatId = backStackEntry.arguments?.getString("chatId") ?: ""
+        composable("${Routes.CHAT_DETAIL}/{otherUserId}/{otherUserName}") { backStackEntry ->
+            val otherUserId = backStackEntry.arguments?.getString("otherUserId") ?: ""
             val otherUserName = backStackEntry.arguments?.getString("otherUserName") ?: ""
 
-            ChatDetailScreen(chatId, otherUserName, navController)
+            ChatDetailScreen(otherUserId, otherUserName, navController)
         }
 
         composable(Routes.PROFILE) {

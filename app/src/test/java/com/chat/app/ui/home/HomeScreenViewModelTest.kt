@@ -4,7 +4,7 @@ import com.chat.app.data.local.entities.ChatEntity
 import org.junit.Test
 import org.junit.Assert.*
 
-class HomeScreenViewModelSimpleTest {
+class HomeScreenViewModelTest {
 
     // شوية داتا نجرب عليها - هتعمل الكلام ده برضو انت يحودا متقلقش ده بسيط
     private val sampleChats = listOf(
